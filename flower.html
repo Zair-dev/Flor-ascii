@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ASCII Flora — From Seed to Bloom</title>
+<style>
+  :root{
+    --ink: rgba(220,255,230,.88);
+    --dim: rgba(170,210,185,.46);
+    --line: rgba(150,255,200,.14);
+    --lime:#b6ff5c; --pink:#ff4f9a; --gold:#ffcf4a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:#020303;overflow:hidden;color:var(--ink);
+    font-family:"JetBrains Mono","Cascadia Mono",Consolas,"Courier New",monospace}
+  #scene{position:fixed;inset:0;width:100vw;height:100vh;display:block;touch-action:none}
+
+  #ui{position:fixed;inset:0;pointer-events:none;transition:opacity .6s}
+  #ui.hidden{opacity:0}
+  #ui .top,#ui .bottom{pointer-events:auto}
+
+  /* ---------- Cabecera ---------- */
+  .top{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;
+    align-items:flex-start;gap:16px;flex-wrap:wrap;padding:18px 22px 30px;
+    background:linear-gradient(#020303d0,#02030300)}
+  .brand .title{font-size:12px;letter-spacing:.38em}
+  .brand .title b{color:var(--lime);font-weight:600}
+  .brand .sub{font-size:10px;letter-spacing:.3em;color:var(--dim);margin-top:5px}
+  .phase{margin-top:16px}
+  .phase .idx{font-size:10px;letter-spacing:.3em;color:var(--dim)}
+  .phase .name{font-size:clamp(20px,3vw,32px);letter-spacing:.16em;font-weight:700;margin-top:2px;
+    background:linear-gradient(90deg,var(--lime),#7dffc0 40%,var(--pink) 75%,var(--gold));
+    -webkit-background-clip:text;background-clip:text;color:transparent;transition:opacity .4s}
+  .phase .name.swap{opacity:0}
+  .phase .desc{font-size:11px;color:var(--dim);max-width:340px;line-height:1.55;margin-top:6px}
+
+  /* ---------- Controles ---------- */
+  .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+  button{font:inherit;font-size:11px;letter-spacing:.2em;color:var(--ink);background:rgba(10,18,14,.62);
+    border:1px solid var(--line);padding:9px 15px;border-radius:999px;cursor:pointer;transition:.2s}
+  button:hover{border-color:rgba(182,255,92,.6);color:#fff;box-shadow:0 0 18px rgba(182,255,92,.15)}
+  .ctl{display:flex;align-items:center;gap:9px;font-size:10px;letter-spacing:.2em;color:var(--dim);
+    background:rgba(10,18,14,.62);border:1px solid var(--line);padding:7px 13px;border-radius:999px;cursor:pointer;user-select:none}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:92px;height:2px;background:rgba(150,255,200,.25);outline:none;cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;
+    background:var(--lime);box-shadow:0 0 10px var(--lime)}
+  input[type=range]::-moz-range-thumb{width:12px;height:12px;border:0;border-radius:50%;background:var(--lime)}
+  output{min-width:44px;color:var(--ink)}
+  .switch input{display:none}
+  .switch .sw{width:28px;height:14px;border-radius:10px;background:rgba(255,255,255,.1);position:relative;transition:.2s}
+  .switch .sw::after{content:"";position:absolute;top:2px;left:2px;width:10px;height:10px;border-radius:50%;
+    background:var(--dim);transition:.2s}
+  .switch input:checked + .sw{background:rgba(182,255,92,.25)}
+  .switch input:checked + .sw::after{left:16px;background:var(--lime);box-shadow:0 0 8px var(--lime)}
+
+  /* ---------- Línea de fases + progreso ---------- */
+  .bottom{position:absolute;left:0;right:0;bottom:0;padding:26px 22px 16px;
+    background:linear-gradient(#02030300,#020303e0 55%)}
+  .chain{display:flex;list-style:none;font-size:10px;letter-spacing:.16em;color:rgba(170,210,185,.3);margin-bottom:8px}
+  .chain li{white-space:nowrap;overflow:hidden;text-overflow:clip;transition:color .5s,text-shadow .5s}
+  .chain li:not(:first-child)::before{content:"→ ";opacity:.45}
+  .chain li.done{color:rgba(182,255,92,.6)}
+  .chain li.active{color:#fff;text-shadow:0 0 10px rgba(255,79,154,.9)}
+  .bar-row{display:flex;align-items:center;gap:14px}
+  .bar{position:relative;flex:1;height:6px;background:rgba(255,255,255,.07);border-radius:4px;cursor:pointer}
+  .bar::before{content:"";position:absolute;inset:-8px 0}
+  .fill{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:4px;
+    background:linear-gradient(90deg,#6b4423,#2fbf71 25%,#b6ff5c 45%,#ff4f9a 75%,#ffcf4a);
+    box-shadow:0 0 12px rgba(255,79,154,.45)}
+  .tick{position:absolute;top:-3px;width:1px;height:12px;background:rgba(255,255,255,.2)}
+  .pct{font-size:13px;min-width:54px;text-align:right;letter-spacing:.1em}
+  .hint{font-size:9px;color:var(--dim);letter-spacing:.18em;margin-top:8px;display:flex;justify-content:space-between}
+
+  @media (max-width:700px){
+    .top{padding:12px 14px 24px}
+    .controls{justify-content:flex-start}
+    .phase{margin-top:10px}
+    .phase .desc{display:none}
+    .controls{gap:6px}
+    button{padding:7px 10px;font-size:9px;letter-spacing:.12em}
+    .ctl{padding:5px 9px;font-size:8px;letter-spacing:.1em;gap:6px}
+    input[type=range]{width:56px}
+    output{min-width:34px}
+    .bottom{padding:20px 14px 12px}
+    .chain{font-size:7px;letter-spacing:.04em}
+    .chain li:not(:first-child)::before{content:""}
+    .hint span:last-child{display:none}
+  }
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+
+<div id="ui">
+  <header class="top">
+    <div class="brand">
+      <div class="title"><b>ASCII</b> // FLORA</div>
+      <div class="sub">FROM SEED TO BLOOM</div>
+      <div class="phase">
+        <div class="idx" id="phaseIdx">FASE 01 / 06</div>
+        <div class="name" id="phaseName">SEED</div>
+        <div class="desc" id="phaseDesc"></div>
+      </div>
+    </div>
+    <div class="controls">
+      <button id="playBtn">❚❚ PAUSE</button>
+      <button id="restartBtn">↺ RESTART</button>
+      <label class="ctl">SPEED
+        <input type="range" id="speed" min="0.25" max="4" step="0.25" value="1">
+        <output id="speedOut">1.00×</output>
+      </label>
+      <label class="ctl switch"><input type="checkbox" id="partToggle" checked><span class="sw"></span>PARTICLES</label>
+    </div>
+  </header>
+
+  <footer class="bottom">
+    <ol class="chain" id="chain"></ol>
+    <div class="bar-row">
+      <div class="bar" id="bar"><div class="fill" id="fill"></div></div>
+      <div class="pct" id="pct">0%</div>
+    </div>
+    <div class="hint"><span id="fps">-- FPS</span><span>ESPACIO play/pausa · R reiniciar · P partículas · H ocultar UI · clic en la barra para saltar</span></div>
+  </footer>
+</div>
+
+<script>
+'use strict';
+/* =====================================================================
+   ASCII FLORA — una flor generativa hecha solo de caracteres ASCII.
+   Todo se genera con código: no hay imágenes, vídeos ni librerías.
+
+   Arquitectura:
+   - La escena se rasteriza cada frame en una REJILLA de celdas (cols × rows).
+     Cada parte de la planta "salpica" muestras (splat) con profundidad z,
+     color y carácter; un z-buffer decide qué carácter gana en cada celda.
+   - El carácter se elige por densidad/brillo (rampa) o por dirección
+     (| / \ -) para estructuras lineales como raíces, nervios y tallos.
+   - Capas: cielo + rayos de luz → tierra (pre-renderizada) → luz en el
+     suelo → glifos de la planta → partículas → brillos → bloom → viñeta.
+   - Todo depende de p (progreso 0..1) y t (reloj), así que se puede
+     pausar, acelerar o saltar a cualquier punto del crecimiento.
+   ===================================================================== */
+
+/* ---------------------- CONFIGURACIÓN ---------------------- */
+const CONFIG = {
+  GROWTH_DURATION: 48,   // segundos de semilla → plena floración a velocidad 1×
+  PARTICLE_COUNT: 280,   // máximo de partículas simultáneas
+  FLOWER_SIZE: 1.0,      // escala de la flor (1 = por defecto)
+  ASCII_DENSITY: 1.0,    // >1 = caracteres más pequeños y más detalle
+  LIGHT_INTENSITY: 1.0,  // intensidad global de iluminación
+  WIND_SPEED: 1.0,       // velocidad del viento (frecuencia)
+  WIND_STRENGTH: 1.0,    // fuerza del viento (amplitud)
+  GLOW: 0.6,             // intensidad del bloom
+  OUTER_PETALS: 8,
+  INNER_PETALS: 6,
+  LEAF_COUNT: 5,
+  FLORETS: 300,          // flósculos del centro (espiral áurea)
+  STAMENS: 22,
+  FLOWER_TILT: 0.42,     // rad: inclinación final de la flor hacia el espectador
+  MAX_DPR: 2,
+};
+
+const PHASES = [
+  {key:'SEED',        start:0.00, end:0.09, desc:'Una semilla duerme bajo la tierra tibia, esperando la humedad.'},
+  {key:'GERMINATION', start:0.09, end:0.24, desc:'La cubierta se abre: la raíz busca el agua y el brote, la luz.'},
+  {key:'SPROUT',      start:0.24, end:0.40, desc:'El brote rompe el suelo y despliega sus primeras hojas.'},
+  {key:'GROWTH',      start:0.40, end:0.62, desc:'El tallo trepa hacia la luz; nuevas hojas y un capullo en la cima.'},
+  {key:'BLOOM',       start:0.62, end:0.88, desc:'Los pétalos se despliegan, uno a uno, alrededor de un corazón dorado.'},
+  {key:'FULL BLOOM',  start:0.88, end:1.00, desc:'Plena floración. La planta respira y se mece con la brisa.'},
+];
+
+const RAMP = '.,:;!+*#%@';           // de menos a más densidad
+const GOLD_ANGLE = 2.399963;
+const LG = (()=>{ const v=[-0.45,-0.6,0.66], l=Math.hypot(...v); return v.map(x=>x/l); })(); // luz 3D
+
+/* ---------------------- PALETA ---------------------- */
+const PAL = {
+  seedDark:[64,36,16], seed:[150,94,42], seedHi:[232,178,100], seedCore:[214,236,150],
+  rootDark:[22,72,46], rootMid:[64,120,74], rootPale:[176,196,140], rootTip:[218,255,176],
+  stemDark:[8,62,40], stem:[24,156,96], stemHi:[150,245,160], lime:[184,255,86], etiol:[200,190,130],
+  leafHi:[176,255,146], vein:[150,238,124],
+  petBase:[112,6,50], petMid:[232,32,122], petTip:[255,126,182], petHi:[255,224,240], petBack:[255,196,222],
+  inBase:[130,6,30], inMid:[248,44,92], inTip:[255,146,150],
+  budGreen:[96,206,104], sepal:[24,116,62], sepalHi:[96,196,100],
+  coreDeep:[118,42,8], coreMid:[255,160,24], coreOut:[255,230,92], stamen:[255,238,176], anther:[255,186,40],
+};
+const PAL_OUT = [PAL.petBase, PAL.petMid, PAL.petTip];
+const PAL_IN  = [PAL.inBase,  PAL.inMid,  PAL.inTip];
+const LEAF_TONES = [[18,128,74],[30,152,82],[52,170,72],[16,140,104],[40,124,62]];
+
+/* ---------------------- UTILIDADES ---------------------- */
+const clamp = (x,a=0,b=1)=> x<a?a:x>b?b:x;
+const lerp  = (a,b,t)=> a+(b-a)*t;
+const smooth= t=> t*t*(3-2*t);
+const win   = (a,b,p)=> clamp((p-a)/(b-a));          // ventana lineal 0..1
+const ease  = (a,b,p)=> smooth(win(a,b,p));          // ventana suavizada
+const easeOut   = t=> 1-Math.pow(1-t,3);
+const easeInOut = t=> t<.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2;
+
+function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function hash1(n){ const x=Math.sin(n*127.1+311.7)*43758.5453; return x-Math.floor(x); }
+function hash2(x,y){ const h=Math.sin(x*127.1+y*311.7)*43758.5453; return h-Math.floor(h); }
+function noise1(x){ const i=Math.floor(x), f=x-i, u=f*f*(3-2*f); return lerp(hash1(i),hash1(i+1),u)*2-1; } // -1..1
+function noise2(x,y){ const xi=Math.floor(x), yi=Math.floor(y), xf=x-xi, yf=y-yi;
+  const u=xf*xf*(3-2*xf), v=yf*yf*(3-2*yf);
+  return lerp(lerp(hash2(xi,yi),hash2(xi+1,yi),u), lerp(hash2(xi,yi+1),hash2(xi+1,yi+1),u), v); } // 0..1
+
+/** Carácter según la dirección de una línea en pantalla. */
+function dirGlyph(dx,dy){
+  let a=Math.atan2(dy,dx); if(a<0) a+=Math.PI;
+  if(a<0.3927||a>=2.7489) return '-';
+  if(a<1.1781) return '\\';
+  if(a<1.9635) return '|';
+  return '/';
+}
+const rampChar = v => RAMP[v<=0?0:v>=1?RAMP.length-1:(v*RAMP.length)|0];
+
+/** Viento procedural: seno lento + ruido + ráfagas. */
+function windAt(t){
+  const w=t*CONFIG.WIND_SPEED;
+  return (Math.sin(w*0.55)*0.42 + noise1(w*0.33)*0.6 + noise1(w*1.6+37.1)*0.16)*CONFIG.WIND_STRENGTH;
+}
+
+/* ---------------------- COLOR "ACTUAL" (sin asignaciones en el bucle caliente) ---------------------- */
+let cr=0,cg=0,cb=0;
+const setc  = c=>{cr=c[0];cg=c[1];cb=c[2];};
+const mixc  = (a,b,t)=>{cr=a[0]+(b[0]-a[0])*t; cg=a[1]+(b[1]-a[1])*t; cb=a[2]+(b[2]-a[2])*t;};
+const towards=(c,t)=>{cr+=(c[0]-cr)*t; cg+=(c[1]-cg)*t; cb+=(c[2]-cb)*t;};
+const mulc  = k=>{cr*=k;cg*=k;cb*=k;};
+function grad3(a,b,c,t){ if(t<0.42) mixc(a,b,t/0.42); else mixc(b,c,(t-0.42)/0.58); }
+
+const colorCache = new Array(32768);
+function colStr(k){ let s=colorCache[k];
+  if(!s){ s=colorCache[k]=`rgb(${((k>>10)&31)*8+4},${((k>>5)&31)*8+4},${(k&31)*8+4})`; } return s; }
+const pack = (r,g,b)=>{ r=r<0?0:r>255?255:r; g=g<0?0:g>255?255:g; b=b<0?0:b>255?255:b;
+  return ((r|0)>>3)<<10 | ((g|0)>>3)<<5 | ((b|0)>>3); };
+
+/* ---------------------- CANVAS Y ESTADO ---------------------- */
+const canvas=document.getElementById('scene'), ctx=canvas.getContext('2d');
+const mk=()=>{ const c=document.createElement('canvas'); return [c,c.getContext('2d')]; };
+const [bgCanvas,bgx]=mk(), [litCanvas,litx]=mk(), [maskCanvas,mskx]=mk(), [glowCanvas,glx]=mk();
+
+let W=0,H=0,DPR=1;
+const L={};                 // layout (px)
+const G={ fc:{x:0,y:0}, rootPts:[], rootTips:[], petalPts:[] };   // estado del frame
+let P=null;                 // "genoma" de la planta
+const state={ playing:true, speed:1, growth:0, clock:0, particles:true, gust:0,
+              mouse:{x:0,y:0,active:false} };
+
+// Rejilla ASCII + z-buffer
+let cols=0, rows=0, zb, stamp, colr, gly, pid, touched, nTouched=0, frameId=1;
+let curPid=0;   // id de la pieza que se está dibujando (tallo, hoja i, pétalo i…) para sombras de contacto
+
+/** Escribe una muestra en la rejilla con el color actual (cr,cg,cb). */
+function put(x,y,z,ch){
+  if(x<0||y<0) return;
+  const c=(x/L.cw)|0, r=(y/L.ch)|0;
+  if(c>=cols||r>=rows) return;
+  const i=r*cols+c;
+  if(stamp[i]!==frameId){ stamp[i]=frameId; zb[i]=-1e9; touched[nTouched++]=i; }
+  if(z>=zb[i]){ zb[i]=z; gly[i]=ch; pid[i]=curPid; const k=G.light; colr[i]=pack(cr*k,cg*k,cb*k); }
+}
+
+/** Sombras de contacto: una celda junto a otra pieza que está DELANTE se oscurece.
+    Así cada pétalo y cada hoja se separa visualmente de lo que tiene detrás. */
+function contactShadows(){
+  const n=nTouched;
+  for(let k=0;k<n;k++){
+    const i=touched[k], id=pid[i]; if(id===0) continue;
+    const z=zb[i]+0.12; let occ=0;     // umbral: solo sombrea si la otra pieza está claramente delante
+    const c=i%cols;
+    if(c>0      && stamp[i-1]===frameId    && pid[i-1]!==id    && pid[i-1]!==0    && zb[i-1]>z) occ++;
+    if(c<cols-1 && stamp[i+1]===frameId    && pid[i+1]!==id    && pid[i+1]!==0    && zb[i+1]>z) occ++;
+    if(i>=cols  && stamp[i-cols]===frameId && pid[i-cols]!==id && pid[i-cols]!==0 && zb[i-cols]>z) occ++;
+    if(i+cols<cols*rows && stamp[i+cols]===frameId && pid[i+cols]!==id && pid[i+cols]!==0 && zb[i+cols]>z) occ++;
+    if(occ){
+      const col=colr[i], f=occ>1?0.38:0.55;
+      colr[i]=pack(((col>>10)&31)*8*f,((col>>5)&31)*8*f,(col&31)*8*f);
+      if(occ>1) gly[i]='.';
+    }
+  }
+}
+
+/* ---------------------- GENOMA: estructura aleatoria de cada planta ---------------------- */
+function genRoots(rng){
+  const segs=[], STEP=0.014;
+  function grow(x,y,ang,len,depth,t0){
+    const n=Math.max(3,Math.round(len/STEP)), pts=[]; let a=ang;
+    for(let i=0;i<=n;i++){
+      pts.push({x,y,tp:t0+i*STEP});
+      // gravitropismo: el ángulo tiende hacia abajo (π/2), más fuerte en la raíz principal
+      a += (rng()-0.5)*(depth===0?0.22:0.42) + (Math.PI/2-a)*(depth===0?0.07:0.022);
+      x += Math.cos(a)*STEP; y += Math.sin(a)*STEP;
+      if(depth<3 && i>2 && i<n-2 && rng()<[0.15,0.1,0.07][depth]){
+        const side=rng()<0.5?-1:1, cl=len*(0.28+rng()*0.32)*(1-0.5*i/n);
+        if(cl>0.04) grow(x,y,a+side*(0.7+rng()*0.6),cl,depth+1,t0+i*STEP+0.04+rng()*0.06);
+      }
+    }
+    segs.push({pts,depth});
+  }
+  grow(0,0.02,Math.PI/2,1.0,0,0);                 // raíz primaria
+  grow(-0.02,0.01,Math.PI/2+0.95,0.42,1,0.08);    // raíces seminales
+  grow( 0.02,0.01,Math.PI/2-0.95,0.40,1,0.12);
+  let maxT=0; for(const s of segs) for(const p of s.pts) maxT=Math.max(maxT,p.tp);
+  for(const s of segs) for(const p of s.pts) p.tp/=maxT;
+  segs.sort((a,b)=>b.depth-a.depth);              // las finas primero, la principal encima
+  return segs;
+}
+
+function genPlant(seed){
+  const rng=mulberry32(seed), P={seed};
+  P.stemPh=rng()*6.28; P.stemPh2=rng()*6.28;
+  P.roots=genRoots(rng);
+
+  // Hojas: 2 cotiledones + hojas verdaderas alternas
+  P.leaves=[];
+  for(const side of [-1,1]) P.leaves.push({cot:true,hf:0.035,side,ang:1.12+rng()*0.15,droop:0.3,
+    len:0.17,wid:0.42,tone:[110,204,74],z:side>0?1.5:0.5,ph:rng()*10});
+  let side=rng()<0.5?-1:1;
+  const n=CONFIG.LEAF_COUNT;
+  for(let i=0;i<n;i++){
+    const f=i/Math.max(1,n-1);
+    // hojas largas y arqueadas: salen hacia arriba y la punta cae por su propio peso
+    P.leaves.push({cot:false,hf:0.09+f*0.38+(rng()-0.5)*0.03,side,ang:0.6+rng()*0.25,
+      droop:1.15+rng()*0.5,len:(1.1-f*0.5)*(0.9+rng()*0.2),wid:0.13+rng()*0.035,
+      tone:LEAF_TONES[(rng()*LEAF_TONES.length)|0],z:rng()<0.5?2:-1,ph:rng()*10});
+    side=-side;
+  }
+
+  // Pétalos: orden de apertura intercalado para que no sea un barrido mecánico
+  const rot=rng()*6.28, NO=CONFIG.OUTER_PETALS, NI=CONFIG.INNER_PETALS;
+  P.petals=[];
+  const stepO=Math.max(1,Math.round(NO*0.38))|1;
+  for(let i=0;i<NO;i++){
+    const k=(i*stepO)%NO;
+    P.petals.push({kind:0,phi:rot+k/NO*Math.PI*2+(rng()-0.5)*0.12,len:0.95+rng()*0.12,
+      wid:(0.31+rng()*0.05)*(8/NO),ce:1.32+rng()*0.06,oe:0.05+rng()*0.1,curl:0.5+rng()*0.25,cup:0.18,
+      hue:rng()-0.5,start:0.635+i*0.021+rng()*0.006,dur:0.13});
+  }
+  for(let i=0;i<NI;i++){
+    const k=(i*(NI>4?5:1))%NI;
+    P.petals.push({kind:1,phi:rot+(k+0.5)/NI*Math.PI*2+(rng()-0.5)*0.1,len:0.62+rng()*0.06,
+      wid:(0.3+rng()*0.04)*(6/NI),ce:1.45,oe:0.48+rng()*0.14,curl:0.12,cup:0.32,
+      hue:rng()-0.5,start:0.70+i*0.024,dur:0.11});
+  }
+  P.sepals=[];
+  for(let i=0;i<5;i++) P.sepals.push({kind:2,phi:rot+0.3+i/5*Math.PI*2,len:0.42,wid:0.09,
+    ce:1.42,oe:-0.35,curl:0.35,cup:0.05,hue:0});
+  return P;
+}
+
+/* ---------------------- LAYOUT ---------------------- */
+function layout(){
+  W=Math.max(1,window.innerWidth); H=Math.max(1,window.innerHeight); DPR=Math.min(window.devicePixelRatio||1,CONFIG.MAX_DPR);
+  L.ready=window.innerWidth>0 && window.innerHeight>0;
+  canvas.width=Math.round(W*DPR); canvas.height=Math.round(H*DPR);
+  const minDim=Math.min(W,H);
+  const F=Math.max(8,Math.min(18,Math.round(minDim/(78*CONFIG.ASCII_DENSITY))));
+  L.F=F; L.cw=F*0.62; L.ch=F*0.9; L.minDim=minDim;
+  L.font=`600 ${F}px "JetBrains Mono","Cascadia Mono",Consolas,"Courier New",monospace`;
+
+  cols=Math.ceil(W/L.cw); rows=Math.ceil(H/L.ch);
+  const N=cols*rows;
+  zb=new Float32Array(N); stamp=new Uint32Array(N); colr=new Int32Array(N);
+  gly=new Array(N); pid=new Int16Array(N); touched=new Int32Array(N); frameId=1;
+
+  L.cx=W/2;
+  L.groundY=Math.round(H*0.7/L.ch)*L.ch;
+  L.seedDepth=(H-L.groundY)*0.2;
+  L.seedY=L.groundY+L.seedDepth;
+  L.seedR=Math.max(L.cw*1.7,minDim*0.022);
+  const topSafe = W<700 ? 175 : H*0.06;   // espacio para la cabecera de la interfaz
+  L.R=Math.min(W*0.27,H*0.2)*CONFIG.FLOWER_SIZE;
+  L.Habove=L.groundY-topSafe-L.R*0.95;
+  if(L.Habove<L.groundY*0.45){ L.R=Math.max(40,(L.groundY*0.55-topSafe)/0.95); L.Habove=L.groundY-topSafe-L.R*0.95; }
+  L.stemMax=L.seedDepth+L.Habove;
+  L.leafUnit=Math.min(L.Habove*0.56,W*0.4);
+  L.stemW0=Math.max(L.cw*1.15,L.R*0.045);
+  L.stemW1=Math.max(L.cw*0.6,L.R*0.024);
+  L.rootMaxY=H-(W<700?70:62);
+  L.rootUnit=Math.max(20,(L.rootMaxY-L.seedY)*0.95);
+  L.rootSpread=Math.min(1.6,(W*0.42)/(L.rootUnit*0.7));
+
+  L.soilGrad=ctx.createLinearGradient(0,L.groundY,0,H);
+  L.soilGrad.addColorStop(0,'#0b0705'); L.soilGrad.addColorStop(1,'#030201');
+  L.vig=ctx.createRadialGradient(W/2,H*0.45,minDim*0.3,W/2,H*0.45,Math.hypot(W,H)*0.62);
+  L.vig.addColorStop(0,'rgba(0,0,0,0)'); L.vig.addColorStop(1,'rgba(0,0,0,0.8)');
+  buildBackground();
+}
+
+/** Pre-renderiza la tierra (versión tenue y versión iluminada) y el polvo del cielo. */
+function buildBackground(){
+  for(const c of [bgCanvas,litCanvas,maskCanvas]){ c.width=canvas.width; c.height=canvas.height; }
+  glowCanvas.width=Math.max(1,Math.ceil(W/4)); glowCanvas.height=Math.max(1,Math.ceil(H/4));
+  for(const x of [bgx,litx]){ x.setTransform(DPR,0,0,DPR,0,0); x.clearRect(0,0,W,H);
+    x.font=L.font; x.textAlign='center'; x.textBaseline='middle'; }
+  const cw=L.cw, ch=L.ch, g0=Math.round(L.groundY/ch);
+
+  // polvo estelar muy tenue en el "cielo"
+  for(let r=0;r<g0-1;r++) for(let c=0;c<cols;c++){
+    if(hash2(c*1.31,r*7.13)<0.011){
+      bgx.fillStyle=`rgba(150,195,178,${(0.05+hash2(c,r)*0.14).toFixed(3)})`;
+      bgx.fillText(hash2(r,c)<0.8?'.':'+',c*cw+cw/2,r*ch+ch/2);
+    }
+  }
+  const soilA=[98,64,37], soilB=[58,37,21];
+  for(let r=g0;r<rows;r++){
+    const depth=(r-g0)/Math.max(1,rows-g0);
+    for(let c=0;c<cols;c++){
+      const x=c*cw+cw/2, y=r*ch+ch/2;
+      const nn=noise2(c*0.11,r*0.23), h=hash2(c+0.17,r+0.71);
+      let glyph, col;
+      if(r===g0){                              // superficie
+        glyph = '_~-.,'[(h*5)|0]; col=[110,82,50];
+      } else {
+        if(h > 0.5+0.38*nn-depth*0.15) continue;
+        const pb=noise2(c*0.45,r*0.9);
+        if(pb>0.84){ glyph=h<0.3?'@':h<0.6?'o':'%'; col=[112,100,88]; }
+        else if(noise2(c*0.05,r*0.6)>0.72){ glyph='~'; col=[80,58,40]; }   // vetas húmedas
+        else { glyph='.,:;\'`'[(hash2(r,c+3.3)*6)|0]; col=[lerp(soilB[0],soilA[0],nn),lerp(soilB[1],soilA[1],nn),lerp(soilB[2],soilA[2],nn)]; }
+      }
+      const k=1-depth*0.55;
+      bgx.fillStyle=`rgb(${col[0]*0.5*k|0},${col[1]*0.5*k|0},${col[2]*0.5*k|0})`;
+      bgx.fillText(glyph,x,y);
+      litx.fillStyle=`rgb(${Math.min(255,col[0]*1.35+30)|0},${Math.min(255,col[1]*1.3+18)|0},${Math.min(255,col[2]*1.2)|0})`;
+      litx.fillText(glyph,x,y);
+    }
+  }
+  // pequeñas matas de hierba en la superficie (lejos de la planta)
+  for(let c=0;c<cols;c++){
+    const x=c*cw+cw/2; if(Math.abs(x-L.cx)<L.R*0.6) continue;
+    if(hash2(c,99.1)<0.13){
+      const y=(g0-1)*ch+ch/2, gch=',\'"|/\\'[(hash2(c,5.5)*6)|0];
+      bgx.fillStyle='rgb(26,70,40)'; bgx.fillText(gch,x,y);
+      litx.fillStyle='rgb(70,150,80)'; litx.fillText(gch,x,y);
+    }
+  }
+}
+
+/* ---------------------- ESTADO DEL FRAME (todo función de p y t) ---------------------- */
+function computeFrame(){
+  const p=Math.min(1,state.growth/CONFIG.GROWTH_DURATION);
+  G.p=p; G.t=state.clock;
+  // longitud del tallo: primero bajo tierra (hasta la superficie), después hacia la luz
+  G.len=L.seedDepth*ease(0.14,0.25,p) + L.Habove*easeInOut(win(0.25,0.74,p));
+  G.growing=ease(0.14,0.2,p)*(1-ease(0.66,0.76,p));
+  G.hook=ease(0.15,0.19,p)*(1-ease(0.25,0.31,p));          // gancho apical al atravesar el suelo
+  G.rootT=1-Math.pow(1-win(0.11,0.82,p),1.7);
+  G.sun=0.12+0.88*ease(0.2,0.9,p);
+  G.light=(0.8+0.25*G.sun)*CONFIG.LIGHT_INTENSITY;
+  G.seedGlow=ease(0.01,0.07,p)*(1-ease(0.3,0.48,p))*(0.85+0.15*Math.sin(G.t*2.2));
+  G.wind=windAt(G.t); G.windTot=G.wind+state.gust;
+  G.fade=ease(0,0.035,p);
+}
+
+/** Punto del tallo a una altura h (px desde la semilla). Incluye curvatura,
+    viento propagado desde la base, nutación de la punta y gancho apical. */
+function stemPoint(h,out){
+  const s=h/L.stemMax, above=Math.max(0,h-L.seedDepth)/L.Habove;
+  let x=L.cx+Math.sin(s*2.4+P.stemPh)*L.R*0.16*s+Math.sin(s*7+P.stemPh2)*L.cw*0.6*s;
+  const w=windAt(G.t-above*0.9)+state.gust;
+  x+=w*L.R*0.26*Math.pow(above,1.6);
+  if(G.growing>0){ const rel=h/Math.max(1,G.len); x+=Math.sin(G.t*1.2)*L.cw*1.4*G.growing*rel*rel*rel; }
+  if(G.hook>0){ const d=G.len-h, hl=L.cw*4; if(d<hl){ const k=1-d/hl; x+=G.hook*k*k*hl*0.7; } }
+  out.x=x; out.y=L.seedY-h; return out;
+}
+const TA={x:0,y:0}, TB={x:0,y:0}, TC={x:0,y:0};
+
+/* ---------------------- RAÍCES ---------------------- */
+function drawRoots(){
+  const rt=G.rootT; G.rootPts.length=0; G.rootTips.length=0;
+  if(rt<=0) return;
+  const U=L.rootUnit, SX=L.rootSpread, step=L.cw*0.42, maxY=L.rootMaxY;
+  for(let si=0;si<P.roots.length;si++){
+    const seg=P.roots[si], pts=seg.pts, d=seg.depth;
+    if(pts[0].tp>rt) continue;
+    const w0=d===0?L.cw*1.05:d===1?L.cw*0.55:0, z=0.4-d*0.1, n=pts.length-1;
+    let lx=0, ly=0, growing=false;
+    for(let i=0;i<n;i++){
+      const a=pts[i], b=pts[i+1];
+      if(a.tp>rt) break;
+      let f=1; if(b.tp>rt){ f=(rt-a.tp)/(b.tp-a.tp); growing=true; }
+      const ax=L.cx+a.x*U*SX, ay=L.seedY+a.y*U, bx=L.cx+b.x*U*SX, by=L.seedY+b.y*U;
+      const dx=bx-ax, dy=by-ay, dl=Math.hypot(dx,dy)||1, nx=-dy/dl, ny=dx/dl;
+      const ns=Math.max(1,Math.ceil(dl*f/step)), along=i/n;
+      const age=clamp((rt-a.tp)*6);                    // 0 = recién crecida, 1 = madura
+      const g=dirGlyph(dx,dy), hw=w0*(1-along*0.65);
+      for(let k=0;k<ns;k++){
+        const tt=(k/ns)*f, x=ax+dx*tt, y=ay+dy*tt;
+        if(y>maxY) continue;
+        mixc(PAL.rootTip,PAL.rootMid,age); towards(PAL.rootDark,age*(d===0?0.55:0.3));
+        if(hw>L.cw*0.6){                               // raíz gruesa: volumen cilíndrico
+          const r0=cr,g0=cg,b0=cb, na=Math.max(2,Math.ceil(2*hw/step));
+          for(let j=0;j<=na;j++){
+            const v=-1+2*j/na, sh=0.55+0.45*Math.cos((v+0.3)*1.3);
+            cr=r0*sh; cg=g0*sh; cb=b0*sh;
+            put(x+nx*v*hw,y+ny*v*hw,z,Math.abs(v)>0.7?g:rampChar(sh*0.75));
+          }
+        } else put(x,y,z,g);
+      }
+      lx=ax+dx*f; ly=ay+dy*f;
+      if((i&3)===0 && ay<maxY) G.rootPts.push(ax,ay);
+      // pelos radiculares
+      if(d>0 && age>0.5 && ay<maxY && hash1(si*97+i)<0.28){
+        const sd=hash1(si*13+i)<0.5?-1:1;
+        setc(PAL.rootPale); mulc(0.5); put(ax+nx*sd*L.cw*0.9,ay+ny*sd*L.cw*0.9,z-0.05,sd>0?'`':',');
+      }
+    }
+    if(growing && ly<maxY){ setc(PAL.rootTip); put(lx,ly,z+0.1,d===0?'V':'v'); G.rootTips.push(lx,ly); }
+  }
+}
+
+/* ---------------------- SEMILLA ---------------------- */
+function drawSeed(){
+  const ap=ease(0.005,0.06,G.p); if(ap<=0) return;
+  const crk=ease(0.10,0.19,G.p), wither=ease(0.34,0.6,G.p);
+  const pulse=1+0.04*Math.sin(G.t*2.2)*(1-crk);
+  const rx=L.seedR*1.3*ap*pulse*(1-0.35*wither), ry=L.seedR*0.9*ap*pulse*(1-0.45*wither);
+  const rot=-0.35, cs=Math.cos(rot), sn=Math.sin(rot), st=L.cw*0.32, gap=crk*L.cw*0.9;
+  for(let ly=-ry;ly<=ry;ly+=st) for(let lx=-rx;lx<=rx;lx+=st){
+    const q=(lx/rx)**2+(ly/ry)**2; if(q>1) continue;
+    const half=lx<0?-1:1;
+    const X=lx+half*gap, Y=ly-crk*Math.abs(lx)*0.3;      // las dos mitades se separan y abren
+    const px=L.cx+X*cs-Y*sn, py=L.seedY+X*sn+Y*cs;
+    const nz=Math.sqrt(1-q);
+    const lit=clamp(0.3+0.55*nz-(lx/rx)*0.18-(ly/ry)*0.25);
+    grad3(PAL.seedDark,PAL.seed,PAL.seedHi,lit);
+    let glyph=q>0.78?(lx<0?'(':')'):rampChar(lit*0.95);
+    const seam=Math.abs(lx)/rx;
+    if(crk>0 && seam<0.22){ towards(PAL.seedCore,crk*(1-seam/0.22)); glyph=seam<0.08?'|':glyph; }
+    mulc(1-0.5*wither);
+    put(px,py,1,glyph);
+  }
+}
+
+/* ---------------------- TALLO ---------------------- */
+function drawStem(){
+  const len=G.len; if(len<=0.5) return;
+  const step=L.cw*0.42;
+  for(let h=0;h<=len;h+=step){
+    const A=stemPoint(h,TA); const ax=A.x, ay=A.y;
+    const hb=h+2<=len?h+2:h-2, B=stemPoint(hb,TB);
+    let tx=(B.x-ax)*(hb>h?1:-1), ty=(B.y-ay)*(hb>h?1:-1); const tl=Math.hypot(tx,ty)||1; tx/=tl; ty/=tl;
+    const s=h/L.stemMax, toTip=len-h;
+    let hw=lerp(L.stemW0,L.stemW1,s)*clamp(0.35+toTip/(L.cw*5),0.35,1);
+    const nx=-ty, ny=tx, under=ay>L.groundY;
+    const young=clamp(1-toTip/(L.Habove*0.1))*(0.3+0.7*G.growing);
+    const dg=dirGlyph(tx,ty), na=Math.max(1,Math.ceil(2*hw/(L.cw*0.45)));
+    for(let k=0;k<=na;k++){
+      const a=-1+2*k/na;
+      const sh=0.42+0.58*Math.max(0,Math.cos((a+0.35)*1.3));
+      mixc(PAL.stemDark,PAL.stem,Math.min(1,sh*1.15));
+      if(sh>0.88) towards(PAL.stemHi,(sh-0.88)*4);
+      if(young>0) towards(PAL.lime,young*0.8);
+      if(under){ towards(PAL.etiol,0.65); mulc(0.75); }
+      let glyph;
+      if(hw<L.cw*0.75) glyph=dg;
+      else if(a<-0.7) glyph='('; else if(a>0.7) glyph=')';
+      else glyph=Math.abs(a+0.3)<0.25?dg:rampChar(sh*0.9);
+      put(ax+nx*a*hw,ay+ny*a*hw,0,glyph);
+    }
+  }
+}
+
+/* ---------------------- HOJAS ---------------------- */
+function drawLeaf(lf){
+  const h=L.seedDepth+lf.hf*L.Habove;
+  const g=lf.cot ? (G.len>h+L.cw*1.5?ease(0.265,0.37,G.p):0) : clamp((G.len-h)/(L.Habove*0.22));
+  if(g<=0.002) return;
+  const ge=easeOut(g), unfold=smooth(clamp(g*1.3-0.05));
+  const B=stemPoint(h,TA), bx=B.x, by=B.y;
+  const wv=windAt(G.t-lf.hf*0.9-0.25)+state.gust;
+  const flutter=wv*0.2+noise1(G.t*1.7+lf.ph)*0.08*(0.35+Math.abs(wv));
+  const side=lf.side;
+  const ang=lerp(0.12,lf.ang,unfold)+side*flutter;     // la hoja nace pegada al tallo y se abre
+  const Llen=lf.len*L.leafUnit*(0.1+0.9*ge);
+  const Wm=lf.wid*Llen*(0.25+0.75*unfold)*(1-0.25*Math.min(1,Math.abs(flutter)*2));
+  const nU=Math.max(3,Math.ceil(Llen/(L.cw*0.4))), du=1/nU;
+  const young=Math.pow(1-ge,1.3);
+  let x=bx, y=by;
+  for(let iu=0;iu<=nU;iu++){
+    const u=iu*du, a=ang+lf.droop*unfold*Math.pow(u,1.6);
+    const dx=side*Math.sin(a), dy=-Math.cos(a);
+    if(iu>0){ x+=dx*Llen*du; y+=dy*Llen*du; }
+    if(y>L.groundY-1) continue;
+    const prof=lf.cot?Math.pow(Math.sin(Math.PI*Math.pow(u,0.75)),0.5):Math.pow(Math.sin(Math.PI*Math.pow(u,0.85)),0.9);
+    const wu=Wm*prof, nx=-dy, ny=dx, mg=dirGlyph(dx,dy);
+    const nV=Math.max(1,Math.ceil(2*wu/(L.cw*0.5)));
+    for(let iv=0;iv<=nV;iv++){
+      const v=-1+2*iv/nV, av=Math.abs(v);
+      const upper=(ny*v)<0;                             // mitad orientada hacia la luz
+      let sh=(upper?1:0.66)*(0.72+0.28*u);
+      setc(lf.tone); if(young>0) towards(PAL.lime,young*0.75);
+      let glyph;
+      if(av<0.14 && !lf.cot){ glyph=mg; towards(PAL.vein,0.45); sh=Math.max(sh,0.9); }
+      else {
+        const vp=((u*8-av*2.4)%1+1)%1;                 // nervios secundarios hacia la punta
+        if(!lf.cot && av<0.85 && vp<0.12){
+          const sg=v<0?-1:1; glyph=dirGlyph(dx*0.55+nx*sg*0.8,dy*0.55+ny*sg*0.8); towards(PAL.vein,0.25);
+        } else if(av>0.84){ glyph=rampChar(sh*0.32); sh*=0.85; }
+        else glyph=rampChar(sh*0.86);
+      }
+      mulc(sh); if(sh>0.95) towards(PAL.leafHi,(sh-0.95)*3);
+      put(x+nx*v*wu,y+ny*v*wu,lf.z,glyph);
+    }
+  }
+}
+
+/* ---------------------- FLOR (geometría 3D proyectada) ---------------------- */
+const F={cx:0,cy:0,nx:0,ny:0,nz:0,e1x:0,e1y:0,e1z:0,e2x:0,e2y:0,e2z:0,size:1};
+
+function drawFlower(){
+  const p=G.p, budS=ease(0.46,0.6,p);
+  G.fOpen=0; G.petalPts.length=0;
+  if(budS<=0.002) return;
+  const tip=stemPoint(G.len,TA), tx=tip.x, ty=tip.y;
+  const pr=stemPoint(Math.max(0,G.len-L.cw*2),TB);
+  const lean=Math.atan2(tx-pr.x,pr.y-ty);
+  const openT=ease(0.62,0.82,p);
+  // la flor mira hacia arriba de capullo y gira hacia el espectador al abrirse
+  const beta=lerp(Math.PI/2,CONFIG.FLOWER_TILT,openT), gam=lean*0.85+G.windTot*0.05;
+  const sb=Math.sin(beta), cbt=Math.cos(beta), sg=Math.sin(gam), cgm=Math.cos(gam);
+  F.nx=sb*sg;    F.ny=-sb*cgm;  F.nz=cbt;     // eje de la flor
+  F.e1x=cgm;     F.e1y=sg;      F.e1z=0;      // base del plano de la corola
+  F.e2x=-cbt*sg; F.e2y=cbt*cgm; F.e2z=sb;
+  F.size=L.R*budS*lerp(0.5,1,ease(0.58,0.9,p));
+  F.cx=tx+F.nx*L.R*0.05*budS; F.cy=ty+F.ny*L.R*0.05*budS;
+  G.fc.x=F.cx; G.fc.y=F.cy; G.fOpen=openT;
+  const budColor=ease(0.54,0.7,p);
+
+  // receptáculo: une la punta del tallo con la base de la flor
+  curPid=1;
+  const rc=F.size*0.07;
+  for(let f=0;f<=1.001;f+=0.2){
+    for(let a=0;a<6.28;a+=0.7){
+      const r=rc*(0.4+0.6*f), ca=Math.cos(a), sa=Math.sin(a);
+      const x=tx+(F.cx-tx)*f+(ca*F.e1x+sa*F.e2x)*r, y=ty+(F.cy-ty)*f+(ca*F.e1y+sa*F.e2y)*r;
+      mixc(PAL.sepal,PAL.stem,0.6+0.4*ca*-0.5); put(x,y,9+(ca*F.e1z+sa*F.e2z),rampChar(0.75));
+    }
+  }
+  const so=ease(0.6,0.78,p);
+  P.sepals.forEach((sp,i)=>{ curPid=40+i; drawPetal(sp,so,budColor); });
+  P.petals.forEach((pt,i)=>{
+    const o=easeInOut(win(pt.start,pt.start+pt.dur,p));
+    curPid=o<0.25?20:21+i;           // pétalos cerrados = un solo volumen (sin sombras internas)
+    drawPetal(pt,o,budColor);
+  });
+  curPid=60; drawCenter();
+}
+
+/** Un pétalo (o sépalo) como superficie paramétrica (u a lo largo, v a lo ancho). */
+function drawPetal(pt,o,budColor){
+  const kind=pt.kind, isSep=kind===2;
+  const c=Math.cos(pt.phi), s=Math.sin(pt.phi);
+  const dx=c*F.e1x+s*F.e2x, dy=c*F.e1y+s*F.e2y, dz=c*F.e1z+s*F.e2z;      // radial
+  const sx=-s*F.e1x+c*F.e2x, sy=-s*F.e1y+c*F.e2y, sz=-s*F.e1z+c*F.e2z;   // tangencial
+  const nx=F.nx, ny=F.ny, nz=F.nz;
+  const Lp=pt.len*F.size*(isSep?1:lerp(0.8,1,o));
+  const Wp=pt.wid*F.size*(isSep?1:lerp(0.85,1,o));
+  const elev=lerp(pt.ce,pt.oe,o), curl=pt.curl*o, cup=pt.cup*(1-0.45*o);
+  const step=L.cw*0.5, nU=Math.max(4,Math.ceil(Lp/step)), du=1/nU;   // ~4-6 muestras por celda
+  // los sépalos envuelven el capullo (delante) y luego se doblan hacia atrás
+  const zb=kind===0?10:kind===1?10.4:9.2+1.4*(1-o), R=L.R;
+  const greenMix=isSep?0:(1-budColor)*(1-o*0.9);
+  const A=kind===1?PAL_IN:PAL_OUT, veinK=kind===1?4:6;
+  let qx=0,qy=0,qz=0;
+  for(let iu=0;iu<=nU;iu++){
+    const u=iu*du, a=elev-curl*u*u, ca=Math.cos(a), sa=Math.sin(a);
+    const tx=ca*dx+sa*nx, ty=ca*dy+sa*ny, tz=ca*dz+sa*nz;
+    if(iu>0){ qx+=tx*Lp*du; qy+=ty*Lp*du; qz+=tz*Lp*du; }
+    const prof=isSep?Math.pow(Math.sin(Math.PI*Math.pow(u,0.6)),0.8)*(1-u*0.5)
+                    :Math.pow(Math.max(0,Math.sin(Math.PI*Math.pow(u,1.25))),0.6);
+    const w=Wp*prof; if(w<0.4) continue;
+    const Nx=ty*sz-tz*sy, Ny=tz*sx-tx*sz, Nz=tx*sy-ty*sx;               // normal = t × s
+    const TNx=ty*nz-tz*ny, TNy=tz*nx-tx*nz, TNz=tx*ny-ty*nx;             // t × n (para la copa)
+    const nV=Math.max(6,Math.ceil(2*w/step)), tg=dirGlyph(tx,ty);
+    for(let iv=0;iv<=nV;iv++){
+      const v=-1+2*iv/nV, av=Math.abs(v);
+      if(!isSep && u>0.92 && av<0.16) continue;                            // muesca en la punta
+      const co=cup*w*v*v;
+      const X=qx+sx*v*w+nx*co, Y=qy+sy*v*w+ny*co, Z=qz+sz*v*w+nz*co;
+      const k=2*cup*v;
+      let mx=Nx+k*TNx, my=Ny+k*TNy, mz=Nz+k*TNz; const ml=Math.sqrt(mx*mx+my*my+mz*mz)||1; mx/=ml; my/=ml; mz/=ml;
+      const lam=Math.abs(mx*LG[0]+my*LG[1]+mz*LG[2]);
+      const vein=Math.cos(v*Math.PI*veinK+u*2);
+      let sh=(0.3+0.7*lam)*(0.62+0.38*Math.min(1,u*3.5))*(0.88+0.12*vein);
+      if(isSep){ mixc(PAL.sepal,PAL.sepalHi,u*0.6+lam*0.4); }
+      else {
+        grad3(A[0],A[1],A[2],u);
+        cr+=pt.hue*26; cb-=pt.hue*20;
+        if(mz<0){ towards(PAL.petBack,0.3); sh*=0.85; }                   // envés más pálido
+        if(greenMix>0) towards(PAL.budGreen,greenMix);
+        if(o<0.5) sh=Math.max(sh,0.5+0.3*u);                  // el capullo cerrado no queda en negro
+      }
+      mulc(sh);
+      if(!isSep){
+        if(lam>0.82) towards(PAL.petHi,(lam-0.82)*2.2*u);   // reflejo especular
+        if(av>0.86) mulc(lerp(0.95,0.72,o));                  // borde en sombra: separa pétalos
+      }
+      let glyph;
+      if(av>0.88 && (isSep || o>0.3)) glyph=u>0.5?':':'.';
+      else if(!isSep && vein>0.94 && u>0.15) glyph=tg;                       // vetas
+      else glyph=rampChar(sh*(isSep?0.8:0.97));
+      const px=F.cx+X, py=F.cy+Y;
+      put(px,py,zb+Z/R,glyph);
+      if(!isSep && o>0.6 && ((iu*7+iv*13)&63)===0) G.petalPts.push(px,py);
+    }
+  }
+}
+
+/** Centro de la flor: flósculos en espiral áurea sobre una cúpula + estambres. */
+function drawCenter(){
+  const cT=ease(0.69,0.93,G.p); if(cT<=0) return;
+  const Rc=F.size*0.2*(0.55+0.45*cT), N=CONFIG.FLORETS, vis=Math.floor(N*cT);
+  const R=L.R;
+  for(let k=0;k<vis;k++){
+    const r=Rc*Math.sqrt((k+0.5)/N), th=k*GOLD_ANGLE, rr=r/Rc;
+    const dome=Rc*0.35*(1-rr*rr)*cT, ct=Math.cos(th), st=Math.sin(th);
+    const X=(ct*F.e1x+st*F.e2x)*r+F.nx*dome, Y=(ct*F.e1y+st*F.e2y)*r+F.ny*dome, Z=(ct*F.e1z+st*F.e2z)*r+F.nz*dome;
+    let ch;
+    if(rr<0.32){ mixc(PAL.coreDeep,PAL.coreMid,rr/0.32*0.6); ch=k%3===0?'%':'@'; }
+    else if(rr<0.72){ mixc(PAL.coreMid,PAL.coreOut,(rr-0.32)/0.4); ch=k%2?'*':'#'; }
+    else { setc(PAL.coreOut); ch=k%3===0?'o':'+'; }
+    const light=0.75+0.25*clamp(-(ct*0.6+st*0.8)*rr+0.5);
+    mulc(light*(0.82+0.18*Math.sin(G.t*2.6+k*1.7)));
+    put(F.cx+X,F.cy+Y,13+Z/R,ch);
+  }
+  if(cT>0.35){
+    const sL=ease(0.35,1,cT), M=CONFIG.STAMENS, r0=Rc*0.85, len=Rc*0.75*sL, el=0.75;
+    for(let j=0;j<M;j++){
+      const th=j/M*Math.PI*2+0.2+hash1(j)*0.15, ct=Math.cos(th), st=Math.sin(th);
+      const dxr=ct*F.e1x+st*F.e2x, dyr=ct*F.e1y+st*F.e2y, dzr=ct*F.e1z+st*F.e2z;
+      const ex=Math.cos(el)*dxr+Math.sin(el)*F.nx, ey=Math.cos(el)*dyr+Math.sin(el)*F.ny, ez=Math.cos(el)*dzr+Math.sin(el)*F.nz;
+      for(let q=0;q<=4;q++){
+        const f=q/4*len*(0.85+hash1(j+9)*0.3);
+        const X=dxr*r0+ex*f, Y=dyr*r0+ey*f, Z=dzr*r0+ez*f;
+        if(q<4){ setc(PAL.stamen); mulc(0.8); put(F.cx+X,F.cy+Y,13.5+Z/R,':'); }
+        else { setc(PAL.anther); mulc(0.9+0.1*Math.sin(G.t*3+j)); put(F.cx+X,F.cy+Y,13.6+Z/R,j%2?'*':'o'); }
+      }
+    }
+  }
+}
+
+/* ---------------------- PARTÍCULAS ---------------------- */
+const particles=[], acc={};
+function spawnParticle(type){
+  const R=Math.random, q={type,x:0,y:0,vx:0,vy:0,life:0,max:1,ch:'.',c:null,seed:R()*100,h:0,tx:0,ty:0,sp:0,off:0};
+  switch(type){
+    case 'dust':
+      q.x=L.cx+(R()-0.5)*L.minDim*0.5; q.y=L.groundY+L.ch+R()*(L.rootMaxY-L.groundY-L.ch);
+      q.vx=(R()-0.5)*6; q.vy=(R()-0.5)*6; q.max=2.5+R()*3; q.ch=R()<0.6?'.':R()<0.5?',':'`';
+      q.c=R()<0.5?[176,124,74]:[124,88,54]; break;
+    case 'water': case 'nutrient': {
+      q.x=L.cx+(R()-0.5)*Math.min(W*0.85,L.rootUnit*L.rootSpread*1.6);
+      q.y=L.groundY+L.ch*1.5+R()*(L.rootMaxY-L.groundY-L.ch*2);
+      const n=G.rootPts.length>>1;
+      if(n>0){ const k=((R()*n)|0)*2; q.tx=G.rootPts[k]; q.ty=G.rootPts[k+1]; } else { q.tx=L.cx; q.ty=L.seedY; }
+      q.sp=12+R()*14; q.max=7+R()*5;
+      if(type==='water'){ q.ch=R()<0.5?'~':'.'; q.c=[96,200,255]; } else { q.ch='+'; q.c=[255,206,86]; }
+      break; }
+    case 'sap':
+      q.h=L.seedDepth*0.5; q.sp=L.Habove*(0.18+R()*0.12); q.max=30; q.ch=R()<0.5?':':'.';
+      q.c=[200,255,124]; q.off=(R()-0.5)*L.cw*0.8; break;
+    case 'air': {
+      q.x=R()*W; q.y=L.groundY*(0.12+R()*0.85); q.vy=-(3+R()*7); q.max=6+R()*7;
+      const r=R(); q.ch=r<0.55?'.':r<0.75?'\'':r<0.9?'+':'*';
+      q.c=(G.p>0.8&&R()<0.4)?[255,164,212]:R()<0.5?[255,228,142]:[164,255,204]; break; }
+    case 'pollen': {
+      const a=R()*6.28, r=R()*L.R*0.18;
+      q.x=G.fc.x+Math.cos(a)*r; q.y=G.fc.y+Math.sin(a)*r; q.vx=(R()-0.5)*30; q.vy=-(5+R()*15);
+      q.max=3+R()*4; q.ch=R()<0.5?'*':'.'; q.c=[255,214,84]; break; }
+    case 'sparkle': {
+      const n=G.petalPts.length>>1; if(!n) return;
+      const k=((R()*n)|0)*2; q.x=G.petalPts[k]; q.y=G.petalPts[k+1]; q.max=0.5+R()*0.7; q.c=[255,238,248]; break; }
+  }
+  particles.push(q);
+}
+
+function updateParticles(dt){
+  if(!state.particles){ particles.length=0; return; }
+  const p=G.p, scale=CONFIG.PARTICLE_COUNT/280;
+  const rates={
+    dust:12*(1-ease(0.22,0.4,p)),
+    water:9*ease(0.1,0.18,p)*(1-0.6*ease(0.8,1,p)),
+    nutrient:4*ease(0.13,0.24,p),
+    sap:7*ease(0.27,0.36,p),
+    air:1.2+3*ease(0.3,0.6,p)+6*ease(0.78,0.95,p),
+    pollen:7*ease(0.82,0.95,p),
+    sparkle:16*ease(0.86,0.96,p),
+  };
+  for(const k in rates){
+    acc[k]=(acc[k]||0)+rates[k]*scale*dt;
+    while(acc[k]>=1){ acc[k]-=1; if(particles.length<CONFIG.PARTICLE_COUNT) spawnParticle(k); }
+  }
+  const m=state.mouse;
+  for(let i=particles.length-1;i>=0;i--){
+    const q=particles[i]; q.life+=dt;
+    if(q.life>=q.max || stepParticle(q,dt,m)===false) particles.splice(i,1);
+  }
+}
+
+function stepParticle(q,dt,m){
+  switch(q.type){
+    case 'dust':
+      q.vx+=(Math.random()-0.5)*30*dt; q.vy+=(Math.random()-0.5)*30*dt; q.vx*=0.96; q.vy*=0.96;
+      q.x+=q.vx*dt; q.y+=q.vy*dt; if(q.y<L.groundY+L.ch) q.vy=Math.abs(q.vy); break;
+    case 'water': case 'nutrient': {
+      const dx=q.tx-q.x, dy=q.ty-q.y, d=Math.hypot(dx,dy)||1;
+      // se dirigen hacia las raíces con un ligero serpenteo
+      const wob=Math.sin(G.t*3+q.seed)*0.5;
+      const ux=dx/d-wob*dy/d, uy=dy/d+wob*dx/d;
+      q.vx+=(ux*q.sp-q.vx)*Math.min(1,dt*2); q.vy+=(uy*q.sp-q.vy)*Math.min(1,dt*2);
+      q.x+=q.vx*dt; q.y+=q.vy*dt;
+      if(d<L.cw*0.8){ q.type='flash'; q.max=q.life+0.4; q.ch='*'; q.c=q.c[0]>200?[255,236,150]:[190,240,255]; }
+      break; }
+    case 'sap': {
+      q.h+=q.sp*dt; if(q.h>=G.len-2) return false;
+      const sp=stemPoint(q.h,TC); q.x=sp.x+q.off; q.y=sp.y; break; }
+    case 'air': case 'pollen': {
+      const wind=G.windTot*48;
+      q.vx+=(wind+noise1(q.seed+G.t*0.6)*10-q.vx)*Math.min(1,dt*0.9);
+      q.vy+=((q.type==='pollen'?-4:-6)+Math.sin(G.t*1.7+q.seed)*6-q.vy)*Math.min(1,dt*0.7);
+      if(G.fOpen>0.3){                                   // remolino suave alrededor de la flor
+        const dx=G.fc.x-q.x, dy=G.fc.y-q.y, d2=dx*dx+dy*dy, rr=L.R*2.2;
+        if(d2<rr*rr){ const d=Math.sqrt(d2)+1, k=dt*G.fOpen; q.vx+=(-dy/d*14+dx/d*4)*k; q.vy+=(dx/d*14+dy/d*4)*k; }
+      }
+      if(m.active){                                      // el cursor aparta las partículas
+        const dx=q.x-m.x, dy=q.y-m.y, d2=dx*dx+dy*dy;
+        if(d2<8100){ const d=Math.sqrt(d2)+0.01, f=(1-d/90)*260*dt; q.vx+=dx/d*f; q.vy+=dy/d*f; }
+      }
+      q.x+=q.vx*dt; q.y+=q.vy*dt;
+      if(q.y>L.groundY-L.ch){ q.y=L.groundY-L.ch; q.vy=-Math.abs(q.vy); }
+      if(q.x<-30||q.x>W+30||q.y<-30) return false;
+      break; }
+  }
+  return true;
+}
+
+function drawParticles(){
+  if(!particles.length) return;
+  ctx.font=L.font; ctx.textAlign='center'; ctx.textBaseline='middle';
+  const SPK='.+*+.';
+  for(const q of particles){
+    let a=Math.min(1,q.life/0.35,(q.max-q.life)/0.5); if(a<=0) continue;
+    let b=1, ch=q.ch;
+    if(q.type==='air'){
+      a*=0.55+0.45*Math.sin(G.t*3+q.seed*5);
+      if(G.fOpen>0){ const d=Math.hypot(q.x-G.fc.x,q.y-G.fc.y); b+=0.8*G.fOpen*Math.max(0,1-d/(L.R*1.8)); }
+    } else if(q.type==='sparkle'){ ch=SPK[Math.min(4,(q.life/q.max*5)|0)]; }
+    else if(q.type==='dust') a*=0.6;
+    ctx.globalAlpha=clamp(a);
+    ctx.fillStyle=colStr(pack(q.c[0]*b,q.c[1]*b,q.c[2]*b));
+    ctx.fillText(ch,q.x,q.y);
+  }
+  ctx.globalAlpha=1;
+}
+
+/* ---------------------- COMPOSICIÓN ---------------------- */
+function drawSky(){
+  const s=G.sun*CONFIG.LIGHT_INTENSITY, fy=L.groundY-L.Habove*0.85;
+  const g=ctx.createRadialGradient(L.cx,fy,0,L.cx,fy,Math.max(W,H)*0.85);
+  g.addColorStop(0,`rgb(${10+16*s|0},${16+22*s|0},${18+18*s|0})`);
+  g.addColorStop(0.55,`rgb(${5+5*s|0},${8+7*s|0},${9+6*s|0})`);
+  g.addColorStop(1,'#020303');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle=L.soilGrad; ctx.fillRect(0,L.groundY,W,H-L.groundY);
+}
+
+/** Rayos de luz diagonales que se intensifican a medida que la planta crece. */
+function drawShafts(){
+  const s=G.sun*CONFIG.LIGHT_INTENSITY; if(s<0.02) return;
+  ctx.save(); ctx.globalCompositeOperation='lighter';
+  for(let i=0;i<3;i++){
+    const off=Math.sin(G.t*0.07+i*2.1)*L.R*0.6+(i-1)*L.R*0.8, w=L.R*(0.22+i*0.08);
+    const a=0.035*s*(0.7+0.3*Math.sin(G.t*0.3+i));
+    const g=ctx.createLinearGradient(0,0,0,L.groundY);
+    g.addColorStop(0,`rgba(200,255,220,${a})`); g.addColorStop(1,'rgba(200,255,220,0)');
+    ctx.fillStyle=g; ctx.beginPath();
+    ctx.moveTo(L.cx+off-w-L.R*0.6,0); ctx.lineTo(L.cx+off+w-L.R*0.6,0);
+    ctx.lineTo(L.cx+off+w*2+L.R*0.6,L.groundY); ctx.lineTo(L.cx+off-w+L.R*0.6,L.groundY);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+}
+
+/** Iluminación de la tierra: máscara de luz (semilla, sol, raíces) aplicada a la versión iluminada. */
+function drawSoilLight(){
+  mskx.setTransform(1,0,0,1,0,0); mskx.globalCompositeOperation='source-over';
+  mskx.clearRect(0,0,maskCanvas.width,maskCanvas.height);
+  mskx.setTransform(DPR,0,0,DPR,0,0);
+  if(G.seedGlow>0.01){
+    const r=L.minDim*0.22, g=mskx.createRadialGradient(L.cx,L.seedY,0,L.cx,L.seedY,r);
+    g.addColorStop(0,`rgba(255,255,255,${0.9*G.seedGlow})`); g.addColorStop(1,'rgba(255,255,255,0)');
+    mskx.fillStyle=g; mskx.fillRect(L.cx-r,L.seedY-r,r*2,r*2);
+  }
+  if(G.rootT>0){
+    const cy=L.seedY+L.rootUnit*0.4*G.rootT, r=L.rootUnit*0.8;
+    const g=mskx.createRadialGradient(L.cx,cy,0,L.cx,cy,r);
+    g.addColorStop(0,`rgba(255,255,255,${0.32*Math.min(1,G.rootT*3)})`); g.addColorStop(1,'rgba(255,255,255,0)');
+    mskx.fillStyle=g; mskx.fillRect(L.cx-r,cy-r,r*2,r*2);
+  }
+  const s=G.sun*CONFIG.LIGHT_INTENSITY;
+  if(s>0.02){
+    const g=mskx.createRadialGradient(L.cx,L.groundY,0,L.cx,L.groundY,W*0.55);
+    g.addColorStop(0,`rgba(255,255,255,${0.55*s})`); g.addColorStop(1,'rgba(255,255,255,0)');
+    mskx.fillStyle=g; mskx.fillRect(0,L.groundY,W,(H-L.groundY)*0.4);
+  }
+  mskx.setTransform(1,0,0,1,0,0); mskx.globalCompositeOperation='source-in';
+  mskx.drawImage(litCanvas,0,0);
+  mskx.globalCompositeOperation='source-over';
+  ctx.drawImage(maskCanvas,0,0,W,H);
+}
+
+/** Pinta la rejilla ASCII (solo las celdas tocadas este frame). */
+function drawGlyphs(){
+  const cw=L.cw, chh=L.ch, gRow=Math.round(L.groundY/chh);
+  ctx.fillStyle=L.soilGrad;                 // borra la tierra detrás de raíces/semilla
+  for(let k=0;k<nTouched;k++){ const i=touched[k], r=(i/cols)|0; if(r>=gRow){ const c=i-r*cols; ctx.fillRect(c*cw,r*chh,cw+0.5,chh+0.5); } }
+  ctx.font=L.font; ctx.textAlign='center'; ctx.textBaseline='middle';
+  let last=-1;
+  for(let k=0;k<nTouched;k++){
+    const i=touched[k], r=(i/cols)|0, c=i-r*cols, col=colr[i];
+    if(col!==last){ ctx.fillStyle=colStr(col); last=col; }
+    ctx.fillText(gly[i],c*cw+cw*0.5,r*chh+chh*0.5);
+  }
+}
+
+/** Halos de luz aditivos: semilla, flor y capullo. */
+function drawGlows(){
+  ctx.save(); ctx.globalCompositeOperation='lighter';
+  const li=CONFIG.LIGHT_INTENSITY;
+  if(G.seedGlow>0.01){
+    const r=L.seedR*7, g=ctx.createRadialGradient(L.cx,L.seedY,0,L.cx,L.seedY,r);
+    g.addColorStop(0,`rgba(255,180,80,${0.3*G.seedGlow*li})`); g.addColorStop(0.35,`rgba(255,120,40,${0.08*G.seedGlow*li})`);
+    g.addColorStop(1,'rgba(0,0,0,0)'); ctx.fillStyle=g; ctx.fillRect(L.cx-r,L.seedY-r,r*2,r*2);
+  }
+  const bud=ease(0.5,0.62,G.p);
+  if(bud>0){
+    const f=ease(0.68,0.95,G.p), r=L.R*(0.6+1.1*f), x=G.fc.x, y=G.fc.y;
+    const g=ctx.createRadialGradient(x,y,0,x,y,r);
+    g.addColorStop(0,`rgba(255,205,110,${(0.06*bud+0.16*f)*li})`);
+    g.addColorStop(0.45,`rgba(255,70,150,${(0.03*bud+0.06*f)*li})`);
+    g.addColorStop(1,'rgba(0,0,0,0)'); ctx.fillStyle=g; ctx.fillRect(x-r,y-r,r*2,r*2);
+  }
+  ctx.restore();
+}
+
+/** Bloom barato: copia reducida + desenfoque, sumada en modo aditivo. */
+function drawBloom(){
+  if(CONFIG.GLOW<=0) return;
+  const gw=glowCanvas.width, gh=glowCanvas.height;
+  glx.setTransform(1,0,0,1,0,0); glx.clearRect(0,0,gw,gh);
+  glx.filter='blur(2px)'; glx.drawImage(canvas,0,0,gw,gh); glx.filter='none';
+  ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=CONFIG.GLOW*(0.55+0.45*G.sun);
+  ctx.drawImage(glowCanvas,0,0,W,H); ctx.restore();
+}
+
+function render(){
+  // 1) geometría → rejilla
+  frameId++; nTouched=0;
+  curPid=0; drawRoots(); drawSeed();
+  curPid=1; drawStem();
+  P.leaves.forEach((lf,i)=>{ curPid=2+i; drawLeaf(lf); });
+  drawFlower();
+  contactShadows();
+  // 2) composición
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  ctx.globalCompositeOperation='source-over'; ctx.globalAlpha=1;
+  drawSky(); drawShafts();
+  ctx.drawImage(bgCanvas,0,0,W,H);
+  drawSoilLight();
+  drawGlyphs();
+  drawParticles();
+  drawGlows();
+  drawBloom();
+  ctx.fillStyle=L.vig; ctx.fillRect(0,0,W,H);
+  if(G.fade<1){ ctx.fillStyle=`rgba(2,3,3,${1-G.fade})`; ctx.fillRect(0,0,W,H); }
+}
+
+/* ---------------------- INTERFAZ ---------------------- */
+const $=id=>document.getElementById(id);
+const ui={idx:$('phaseIdx'),name:$('phaseName'),desc:$('phaseDesc'),fill:$('fill'),pct:$('pct'),
+  play:$('playBtn'),restart:$('restartBtn'),speed:$('speed'),speedOut:$('speedOut'),part:$('partToggle'),
+  bar:$('bar'),chain:$('chain'),fps:$('fps'),root:$('ui')};
+const chainItems=PHASES.map((ph,i)=>{
+  const li=document.createElement('li'); li.textContent=ph.key; li.style.flex=`0 0 ${(ph.end-ph.start)*100}%`;
+  ui.chain.appendChild(li);
+  if(i>0){ const t=document.createElement('div'); t.className='tick'; t.style.left=(ph.start*100)+'%'; ui.bar.appendChild(t); }
+  return li;
+});
+let lastPhase=-1, lastPct=-1;
+function updateUI(){
+  const p=G.p; let idx=0;
+  for(let i=0;i<PHASES.length;i++) if(p>=PHASES[i].start) idx=i;
+  if(idx!==lastPhase){
+    lastPhase=idx; const ph=PHASES[idx];
+    ui.name.classList.add('swap');
+    setTimeout(()=>{ ui.name.textContent=ph.key; ui.desc.textContent=ph.desc;
+      ui.idx.textContent=`FASE 0${idx+1} / 0${PHASES.length}`; ui.name.classList.remove('swap'); },200);
+    chainItems.forEach((li,i)=>{ li.classList.toggle('done',i<idx); li.classList.toggle('active',i===idx); });
+  }
+  ui.fill.style.width=(p*100).toFixed(2)+'%';
+  const pct=Math.floor(p*100+1e-6);
+  if(pct!==lastPct){ lastPct=pct; ui.pct.textContent=pct+'%'; }
+}
+function setPlaying(v){ state.playing=v; ui.play.textContent=v?'❚❚ PAUSE':'▶ PLAY'; }
+function restart(){
+  P=genPlant((Math.random()*1e9)|0);
+  state.growth=0; state.clock=0; state.gust=0; particles.length=0;
+  for(const k in acc) acc[k]=0;
+  setPlaying(true);
+}
+function seekTo(clientX){
+  const r=ui.bar.getBoundingClientRect();
+  state.growth=clamp((clientX-r.left)/r.width)*CONFIG.GROWTH_DURATION;
+  for(let i=particles.length-1;i>=0;i--) if(particles[i].type!=='air') particles.splice(i,1);
+}
+ui.play.onclick=()=>setPlaying(!state.playing);
+ui.restart.onclick=restart;
+ui.speed.oninput=()=>{ state.speed=parseFloat(ui.speed.value); ui.speedOut.textContent=state.speed.toFixed(2)+'×'; };
+ui.part.onchange=()=>{ state.particles=ui.part.checked; if(!state.particles) particles.length=0; };
+let seeking=false;
+ui.bar.addEventListener('pointerdown',e=>{ seeking=true; ui.bar.setPointerCapture(e.pointerId); seekTo(e.clientX); });
+ui.bar.addEventListener('pointermove',e=>{ if(seeking) seekTo(e.clientX); });
+ui.bar.addEventListener('pointerup',()=>{ seeking=false; });
+window.addEventListener('keydown',e=>{
+  if(e.code==='Space'){ e.preventDefault(); setPlaying(!state.playing); }
+  else if(e.key==='r'||e.key==='R') restart();
+  else if(e.key==='p'||e.key==='P'){ ui.part.checked=!ui.part.checked; ui.part.onchange(); }
+  else if(e.key==='h'||e.key==='H') ui.root.classList.toggle('hidden');
+});
+// El movimiento del cursor genera ráfagas de viento y aparta las partículas
+window.addEventListener('pointermove',e=>{
+  const m=state.mouse;
+  if(m.active && state.playing) state.gust=clamp(state.gust+(e.clientX-m.x)*0.004,-1.5,1.5);
+  m.x=e.clientX; m.y=e.clientY; m.active=true;
+});
+document.addEventListener('pointerleave',()=>{ state.mouse.active=false; });
+let resizeT=0;
+window.addEventListener('resize',()=>{ clearTimeout(resizeT); resizeT=setTimeout(()=>{ resizeT=0; layout(); },120); });
+
+/* ---------------------- BUCLE PRINCIPAL ---------------------- */
+let last=performance.now(), fpsN=0, fpsT=0;
+function frame(now){
+  requestAnimationFrame(frame);             // primero: un error puntual no detiene la animación
+  const dt=Math.min(0.05,(now-last)/1000); last=now;
+  // si la ventana empezó oculta (tamaño 0), recalcula el layout cuando ya tenga tamaño
+  if(!L.ready || window.innerWidth!==W || window.innerHeight!==H){ if(window.innerWidth>0 && !resizeT) layout(); }
+  if(state.playing){
+    const sdt=dt*state.speed;
+    state.clock+=sdt;
+    state.growth=Math.min(CONFIG.GROWTH_DURATION,state.growth+sdt);
+    state.gust*=Math.exp(-dt*1.4);
+  }
+  computeFrame();
+  if(state.playing) updateParticles(dt*state.speed);
+  render();
+  updateUI();
+  fpsN++; fpsT+=dt;
+  if(fpsT>=0.5){ ui.fps.textContent=Math.round(fpsN/fpsT)+' FPS'; fpsN=0; fpsT=0; }
+}
+
+P=genPlant((Math.random()*1e9)|0);
+layout();
+// acceso para depuración desde la consola: __flora.seek(0.9)
+window.__flora={state,CONFIG,seek:p=>{state.growth=clamp(p)*CONFIG.GROWTH_DURATION;}};
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
