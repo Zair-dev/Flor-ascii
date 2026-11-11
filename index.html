@@ -3,126 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ASCII Flora — From Seed to Bloom</title>
+<title>DUNIA · ASCII Flora</title>
 <style>
-  :root{
-    --ink: rgba(220,255,230,.88);
-    --dim: rgba(170,210,185,.46);
-    --line: rgba(150,255,200,.14);
-    --lime:#b6ff5c; --pink:#ff4f9a; --gold:#ffcf4a;
-  }
   *{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%;background:#020303;overflow:hidden;color:var(--ink);
-    font-family:"JetBrains Mono","Cascadia Mono",Consolas,"Courier New",monospace}
-  #scene{position:fixed;inset:0;width:100vw;height:100vh;display:block;touch-action:none}
-
-  #ui{position:fixed;inset:0;pointer-events:none;transition:opacity .6s}
-  #ui.hidden{opacity:0}
-  #ui .top,#ui .bottom{pointer-events:auto}
-
-  /* ---------- Cabecera ---------- */
-  .top{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;
-    align-items:flex-start;gap:16px;flex-wrap:wrap;padding:18px 22px 30px;
-    background:linear-gradient(#020303d0,#02030300)}
-  .brand .title{font-size:12px;letter-spacing:.38em}
-  .brand .title b{color:var(--lime);font-weight:600}
-  .brand .sub{font-size:10px;letter-spacing:.3em;color:var(--dim);margin-top:5px}
-  .phase{margin-top:16px}
-  .phase .idx{font-size:10px;letter-spacing:.3em;color:var(--dim)}
-  .phase .name{font-size:clamp(20px,3vw,32px);letter-spacing:.16em;font-weight:700;margin-top:2px;
-    background:linear-gradient(90deg,var(--lime),#7dffc0 40%,var(--pink) 75%,var(--gold));
-    -webkit-background-clip:text;background-clip:text;color:transparent;transition:opacity .4s}
-  .phase .name.swap{opacity:0}
-  .phase .desc{font-size:11px;color:var(--dim);max-width:340px;line-height:1.55;margin-top:6px}
-
-  /* ---------- Controles ---------- */
-  .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
-  button{font:inherit;font-size:11px;letter-spacing:.2em;color:var(--ink);background:rgba(10,18,14,.62);
-    border:1px solid var(--line);padding:9px 15px;border-radius:999px;cursor:pointer;transition:.2s}
-  button:hover{border-color:rgba(182,255,92,.6);color:#fff;box-shadow:0 0 18px rgba(182,255,92,.15)}
-  .ctl{display:flex;align-items:center;gap:9px;font-size:10px;letter-spacing:.2em;color:var(--dim);
-    background:rgba(10,18,14,.62);border:1px solid var(--line);padding:7px 13px;border-radius:999px;cursor:pointer;user-select:none}
-  input[type=range]{-webkit-appearance:none;appearance:none;width:92px;height:2px;background:rgba(150,255,200,.25);outline:none;cursor:pointer}
-  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;
-    background:var(--lime);box-shadow:0 0 10px var(--lime)}
-  input[type=range]::-moz-range-thumb{width:12px;height:12px;border:0;border-radius:50%;background:var(--lime)}
-  output{min-width:44px;color:var(--ink)}
-  .switch input{display:none}
-  .switch .sw{width:28px;height:14px;border-radius:10px;background:rgba(255,255,255,.1);position:relative;transition:.2s}
-  .switch .sw::after{content:"";position:absolute;top:2px;left:2px;width:10px;height:10px;border-radius:50%;
-    background:var(--dim);transition:.2s}
-  .switch input:checked + .sw{background:rgba(182,255,92,.25)}
-  .switch input:checked + .sw::after{left:16px;background:var(--lime);box-shadow:0 0 8px var(--lime)}
-
-  /* ---------- Línea de fases + progreso ---------- */
-  .bottom{position:absolute;left:0;right:0;bottom:0;padding:26px 22px 16px;
-    background:linear-gradient(#02030300,#020303e0 55%)}
-  .chain{display:flex;list-style:none;font-size:10px;letter-spacing:.16em;color:rgba(170,210,185,.3);margin-bottom:8px}
-  .chain li{white-space:nowrap;overflow:hidden;text-overflow:clip;transition:color .5s,text-shadow .5s}
-  .chain li:not(:first-child)::before{content:"→ ";opacity:.45}
-  .chain li.done{color:rgba(182,255,92,.6)}
-  .chain li.active{color:#fff;text-shadow:0 0 10px rgba(255,79,154,.9)}
-  .bar-row{display:flex;align-items:center;gap:14px}
-  .bar{position:relative;flex:1;height:6px;background:rgba(255,255,255,.07);border-radius:4px;cursor:pointer}
-  .bar::before{content:"";position:absolute;inset:-8px 0}
-  .fill{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:4px;
-    background:linear-gradient(90deg,#6b4423,#2fbf71 25%,#b6ff5c 45%,#ff4f9a 75%,#ffcf4a);
-    box-shadow:0 0 12px rgba(255,79,154,.45)}
-  .tick{position:absolute;top:-3px;width:1px;height:12px;background:rgba(255,255,255,.2)}
-  .pct{font-size:13px;min-width:54px;text-align:right;letter-spacing:.1em}
-  .hint{font-size:9px;color:var(--dim);letter-spacing:.18em;margin-top:8px;display:flex;justify-content:space-between}
-
-  @media (max-width:700px){
-    .top{padding:12px 14px 24px}
-    .controls{justify-content:flex-start}
-    .phase{margin-top:10px}
-    .phase .desc{display:none}
-    .controls{gap:6px}
-    button{padding:7px 10px;font-size:9px;letter-spacing:.12em}
-    .ctl{padding:5px 9px;font-size:8px;letter-spacing:.1em;gap:6px}
-    input[type=range]{width:56px}
-    output{min-width:34px}
-    .bottom{padding:20px 14px 12px}
-    .chain{font-size:7px;letter-spacing:.04em}
-    .chain li:not(:first-child)::before{content:""}
-    .hint span:last-child{display:none}
-  }
+  html,body{height:100%;background:#020303;overflow:hidden}
+  #scene{position:fixed;inset:0;width:100vw;height:100vh;display:block;touch-action:none;cursor:crosshair}
 </style>
 </head>
 <body>
 <canvas id="scene"></canvas>
-
-<div id="ui">
-  <header class="top">
-    <div class="brand">
-      <div class="title"><b>ASCII</b> // FLORA</div>
-      <div class="sub">FROM SEED TO BLOOM</div>
-      <div class="phase">
-        <div class="idx" id="phaseIdx">FASE 01 / 06</div>
-        <div class="name" id="phaseName">SEED</div>
-        <div class="desc" id="phaseDesc"></div>
-      </div>
-    </div>
-    <div class="controls">
-      <button id="playBtn">❚❚ PAUSE</button>
-      <button id="restartBtn">↺ RESTART</button>
-      <label class="ctl">SPEED
-        <input type="range" id="speed" min="0.25" max="4" step="0.25" value="1">
-        <output id="speedOut">1.00×</output>
-      </label>
-      <label class="ctl switch"><input type="checkbox" id="partToggle" checked><span class="sw"></span>PARTICLES</label>
-    </div>
-  </header>
-
-  <footer class="bottom">
-    <ol class="chain" id="chain"></ol>
-    <div class="bar-row">
-      <div class="bar" id="bar"><div class="fill" id="fill"></div></div>
-      <div class="pct" id="pct">0%</div>
-    </div>
-    <div class="hint"><span id="fps">-- FPS</span><span>ESPACIO play/pausa · R reiniciar · P partículas · H ocultar UI · clic en la barra para saltar</span></div>
-  </footer>
-</div>
 
 <script>
 'use strict';
@@ -144,7 +33,7 @@
 
 /* ---------------------- CONFIGURACIÓN ---------------------- */
 const CONFIG = {
-  GROWTH_DURATION: 48,   // segundos de semilla → plena floración a velocidad 1×
+  GROWTH_DURATION: 32,   // segundos de semilla → plena floración (antes 48 s: ahora 1.5× más rápido)
   PARTICLE_COUNT: 280,   // máximo de partículas simultáneas
   FLOWER_SIZE: 1.0,      // escala de la flor (1 = por defecto)
   ASCII_DENSITY: 1.0,    // >1 = caracteres más pequeños y más detalle
@@ -188,6 +77,43 @@ const PAL = {
 const PAL_OUT = [PAL.petBase, PAL.petMid, PAL.petTip];
 const PAL_IN  = [PAL.inBase,  PAL.inMid,  PAL.inTip];
 const LEAF_TONES = [[18,128,74],[30,152,82],[52,170,72],[16,140,104],[40,124,62]];
+
+/* Colores del texto, reloj y calendario: degradado multicolor cíclico */
+const MULTI = [[184,255,86],[52,214,120],[64,220,210],[150,120,255],[255,79,154],[255,207,74]];
+
+/* ---------------------- FUENTE ASCII 5×7 (cada "píxel" = una celda) ---------------------- */
+const FONT = (()=>{
+  const d={
+    A:'01110,10001,10001,11111,10001,10001,10001', B:'11110,10001,10001,11110,10001,10001,11110',
+    C:'01110,10001,10000,10000,10000,10001,01110', D:'11110,10001,10001,10001,10001,10001,11110',
+    E:'11111,10000,10000,11110,10000,10000,11111', F:'11111,10000,10000,11110,10000,10000,10000',
+    G:'01110,10001,10000,10111,10001,10001,01111', H:'10001,10001,10001,11111,10001,10001,10001',
+    I:'01110,00100,00100,00100,00100,00100,01110', J:'00111,00010,00010,00010,00010,10010,01100',
+    K:'10001,10010,10100,11000,10100,10010,10001', L:'10000,10000,10000,10000,10000,10000,11111',
+    M:'10001,11011,10101,10101,10001,10001,10001', N:'10001,10001,11001,10101,10011,10001,10001',
+    O:'01110,10001,10001,10001,10001,10001,01110', P:'11110,10001,10001,11110,10000,10000,10000',
+    Q:'01110,10001,10001,10001,10101,10010,01101', R:'11110,10001,10001,11110,10100,10010,10001',
+    S:'01111,10000,10000,01110,00001,00001,11110', T:'11111,00100,00100,00100,00100,00100,00100',
+    U:'10001,10001,10001,10001,10001,10001,01110', V:'10001,10001,10001,10001,10001,01010,00100',
+    W:'10001,10001,10001,10101,10101,10101,01010', X:'10001,10001,01010,00100,01010,10001,10001',
+    Y:'10001,10001,01010,00100,00100,00100,00100', Z:'11111,00001,00010,00100,01000,10000,11111',
+    'Ç':'01110,10001,10000,10000,10001,01110,00100',
+    0:'01110,10001,10011,10101,11001,10001,01110', 1:'00100,01100,00100,00100,00100,00100,01110',
+    2:'01110,10001,00001,00010,00100,01000,11111', 3:'11111,00010,00100,00010,00001,10001,01110',
+    4:'00010,00110,01010,10010,11111,00010,00010', 5:'11111,10000,11110,00001,00001,10001,01110',
+    6:'00110,01000,10000,11110,10001,10001,01110', 7:'11111,00001,00010,00100,01000,01000,01000',
+    8:'01110,10001,10001,01110,10001,10001,01110', 9:'01110,10001,10001,01111,00001,00010,01100',
+    '.':'00000,00000,00000,00000,00000,01100,01100', '/':'00001,00010,00010,00100,01000,01000,10000',
+    ':':'00000,01100,01100,00000,01100,01100,00000',
+  };
+  const f={}; for(const k in d) f[k]=d[k].split(','); return f;
+})();
+const WEEKDAYS=['DIUMENGE','DILLUNS','DIMARTS','DIMECRES','DIJOUS','DIVENDRES','DISSABTE'];
+const MONTHS=['GENER','FEBRER','MARÇ','ABRIL','MAIG','JUNY','JULIOL','AGOST','SETEMBRE','OCTUBRE','NOVEMBRE','DESEMBRE'];
+const MONTHS_S=['GEN','FEB','MAR','ABR','MAI','JUN','JUL','AGO','SET','OCT','NOV','DES'];
+
+/** Saludo según la hora: 5–15 h BON DIA · 15–20 h BONA TARDA · 20–5 h BONA NIT. */
+function greeting(h){ return (h>=5&&h<15)?['BON','DIA']:(h>=15&&h<20)?['BONA','TARDA']:['BONA','NIT']; }
 
 /* ---------------------- UTILIDADES ---------------------- */
 const clamp = (x,a=0,b=1)=> x<a?a:x>b?b:x;
@@ -367,19 +293,22 @@ function layout(){
   gly=new Array(N); pid=new Int16Array(N); touched=new Int32Array(N); frameId=1;
 
   L.cx=W/2;
-  L.groundY=Math.round(H*0.7/L.ch)*L.ch;
+  const wide=W>=900;                        // escritorio: 3 columnas · móvil: texto y reloj arriba
+  L.wide=wide;
+  L.groundY=Math.round(H*(wide?0.72:0.8)/L.ch)*L.ch;
   L.seedDepth=(H-L.groundY)*0.2;
   L.seedY=L.groundY+L.seedDepth;
   L.seedR=Math.max(L.cw*1.7,minDim*0.022);
-  const topSafe = W<700 ? 175 : H*0.06;   // espacio para la cabecera de la interfaz
-  L.R=Math.min(W*0.27,H*0.2)*CONFIG.FLOWER_SIZE;
+  const topSafe=layoutHud(wide);            // coloca fecha, texto, reloj y calendario
+  L.R=(wide?Math.min(W*0.2,H*0.2):Math.min(W*0.27,H*0.2))*CONFIG.FLOWER_SIZE;
   L.Habove=L.groundY-topSafe-L.R*0.95;
-  if(L.Habove<L.groundY*0.45){ L.R=Math.max(40,(L.groundY*0.55-topSafe)/0.95); L.Habove=L.groundY-topSafe-L.R*0.95; }
+  const kMin=wide?0.45:0.4;
+  if(L.Habove<L.groundY*kMin){ L.R=Math.max(40,(L.groundY*(1-kMin)-topSafe)/0.95); L.Habove=L.groundY-topSafe-L.R*0.95; }
   L.stemMax=L.seedDepth+L.Habove;
-  L.leafUnit=Math.min(L.Habove*0.56,W*0.4);
+  L.leafUnit=wide?Math.min(L.Habove*0.56,(W/2-HUD.margin-HUD.colW)*1.05):Math.min(L.Habove*0.56,W*0.4);
   L.stemW0=Math.max(L.cw*1.15,L.R*0.045);
   L.stemW1=Math.max(L.cw*0.6,L.R*0.024);
-  L.rootMaxY=H-(W<700?70:62);
+  L.rootMaxY=H-L.ch*2;
   L.rootUnit=Math.max(20,(L.rootMaxY-L.seedY)*0.95);
   L.rootSpread=Math.min(1.6,(W*0.42)/(L.rootUnit*0.7));
 
@@ -743,6 +672,204 @@ function drawCenter(){
   }
 }
 
+/* =====================================================================
+   HUD ASCII: fecha, DUNIA + saludo, reloj de agujas y calendario.
+   Se dibuja en la MISMA rejilla que la flor (con z alto), así comparte
+   caracteres, bloom y estilo.
+   ===================================================================== */
+const HUD={};
+const CAL_W=24, CAL_H=11;                    // calendario: 24 columnas × 11 filas
+
+/** Calcula posiciones (px y celdas). Devuelve el espacio superior reservado para la flor. */
+function layoutHud(wide){
+  const cw=L.cw, ch=L.ch, m=2*cw;
+  HUD.margin=m; HUD.dateRow=2;
+  const dateBottom=(HUD.dateRow+7)*ch;
+  if(wide){
+    const Rp=Math.min(W*0.2,H*0.2)*CONFIG.FLOWER_SIZE;
+    const colW=Math.max(CAL_W*cw,W/2-Rp*1.3-m);
+    HUD.colW=colW; HUD.lx=m; HUD.rx=W-m-colW;
+    HUD.sD=clamp(Math.floor(colW/cw/29),1,3);           // escala de DUNIA (29 celdas de ancho a escala 1)
+    HUD.sG=Math.max(1,HUD.sD-1);                        // escala del saludo
+    const top=dateBottom+ch*2, bot=L.groundY-ch*2;
+    const textRows=7*HUD.sD+3+14*HUD.sG+1;
+    HUD.textRow=Math.max(Math.round(top/ch),Math.round((top+bot)/2/ch-textRows/2));
+    const rest=bot-top-(CAL_H+4)*ch;
+    HUD.clockR=clamp(Math.min(colW*0.42,rest/2),28,230);
+    const blockH=2*HUD.clockR+(CAL_H+4)*ch;
+    HUD.clockY=Math.max(top,(top+bot)/2-blockH/2)+HUD.clockR;
+    HUD.clockX=HUD.rx+colW/2;
+    HUD.digRow=Math.round((HUD.clockY+HUD.clockR)/ch+1.2);
+    HUD.calRow=HUD.digRow+2;
+    HUD.calCol=Math.round(HUD.clockX/cw-CAL_W/2);
+    return dateBottom+ch;
+  }
+  // pantalla estrecha: texto a la izquierda y reloj a la derecha bajo la fecha;
+  // el calendario baja a la esquina inferior derecha, sobre la tierra
+  const colW=W/2-1.5*m;
+  HUD.colW=colW; HUD.lx=m; HUD.rx=W/2+m*0.5; HUD.sD=1; HUD.sG=1;
+  HUD.textRow=Math.round(dateBottom/ch)+2;
+  // el saludo va en una línea si cabe en la columna (BON DIA / BONA NIT), si no en dos
+  HUD.greet=greeting(new Date().getHours()).join(' ');      // si cambia el saludo se recalcula el layout
+  HUD.oneLine=blockWidth(HUD.greet,1)<=colW/cw;
+  const textRows=HUD.oneLine?7+2+7:7+2+7+1+7;
+  const textBottom=(HUD.textRow+textRows)*ch;
+  HUD.clockR=clamp(Math.min(colW*0.42,(16*ch)/2-ch),24,110);
+  HUD.clockX=HUD.rx+colW/2; HUD.clockY=dateBottom+ch*2+HUD.clockR;
+  HUD.digRow=Math.round((HUD.clockY+HUD.clockR)/ch+1.2);
+  HUD.calRow=rows-CAL_H-1;
+  HUD.calCol=cols-CAL_W-2;
+  return Math.max(textBottom,(HUD.digRow+1)*ch)+ch;
+}
+
+const putCell=(c,r,z,ch)=>put((c+0.5)*L.cw,(r+0.5)*L.ch,z,ch);
+function multi(t){ t=(((t%1)+1)%1)*MULTI.length; const i=t|0; mixc(MULTI[i],MULTI[(i+1)%MULTI.length],smooth(t-i)); }
+/** 0..1 según la cercanía al cursor (los elementos reaccionan al pasar el ratón). */
+function hoverK(px,py){ const m=state.mouse; if(!m.active) return 0;
+  const dx=px-m.x, dy=py-m.y, d2=dx*dx+dy*dy; return d2<8100?1-Math.sqrt(d2)/90:0; }
+const blockWidth=(s,k)=>s.length*6*k-k;
+
+/** Texto en "píxeles ASCII" con biselado, sombra, brillo animado y reacción al cursor. */
+function drawBlockText(str,c0,r0,s,hue,bright){
+  let x0=c0;
+  for(const chr of str){
+    const g=FONT[chr];
+    if(g) for(let y=0;y<7;y++) for(let x=0;x<5;x++){
+      if(g[y][x]!=='1') continue;
+      const top=y===0||g[y-1][x]!=='1';
+      for(let sy=0;sy<s;sy++) for(let sx=0;sx<s;sx++){
+        const c=x0+x*s+sx, r=r0+y*s+sy, px=(c+0.5)*L.cw, py=(r+0.5)*L.ch;
+        const hk=hoverK(px,py);
+        multi(hue+c*0.012+r*0.02-G.t*0.06);
+        let sh=(0.82+0.18*Math.sin(G.t*2.2+c*0.6+r*0.9))*bright;
+        if(top&&sy===0) sh*=1.18;                                // arista superior iluminada
+        if(hk>0){ towards([255,255,255],hk*0.45); sh*=1+hk*0.6; }
+        mulc(sh);
+        const jx=hk>0?Math.sin(G.t*18+r*1.7)*hk*L.cw*0.7:0;      // vibración al pasar el ratón
+        put(px+jx,py,100,top&&sy===0?'%':hash2(c,r)<0.5?'#':'@');
+        mulc(0.22); put(px+L.cw,py+L.ch,99,'.');                 // sombra proyectada
+      }
+    }
+    x0+=6*s;
+  }
+}
+function drawPlain(str,c0,r0,hue,bright,z=100){
+  for(let i=0;i<str.length;i++){
+    const ch=str[i]; if(ch===' ') continue;
+    const px=(c0+i+0.5)*L.cw, py=(r0+0.5)*L.ch, hk=hoverK(px,py);
+    multi(hue+(c0+i)*0.02-G.t*0.06); mulc(bright*(1+hk*0.6)); if(hk>0) towards([255,255,255],hk*0.4);
+    put(px,py,z,ch);
+  }
+}
+
+function drawDate(now){
+  const d=now.getDate(), mo=now.getMonth(), y=now.getFullYear(), wd=WEEKDAYS[now.getDay()];
+  const cands=[`${wd} ${d} ${MONTHS[mo]} ${y}`,`${wd} ${d} ${MONTHS_S[mo]} ${y}`,`${d} ${MONTHS_S[mo]} ${y}`,
+    `${String(d).padStart(2,'0')}/${String(mo+1).padStart(2,'0')}/${y}`];
+  let s=cands.find(c=>blockWidth(c,1)<=cols-4)||cands[3];
+  if(blockWidth(s,1)<=cols-4) drawBlockText(s,Math.round(cols/2-blockWidth(s,1)/2),HUD.dateRow,1,0.6,0.8);
+  else drawPlain(s,Math.round(cols/2-s.length/2),HUD.dateRow+3,0.6,1);
+}
+
+function drawGreeting(now){
+  const cc=(HUD.lx+HUD.colW/2)/L.cw, sD=HUD.sD, sG=HUD.sG;
+  drawBlockText('DUNIA',Math.round(cc-blockWidth('DUNIA',sD)/2),HUD.textRow,sD,0.05,1.1);
+  let r=HUD.textRow+7*sD+(L.wide?3:2);
+  const words=greeting(now.getHours()), one=words.join(' ');
+  const lines=(!L.wide && blockWidth(one,sG)<=HUD.colW/L.cw)?[one]:words;
+  for(const w of lines){
+    drawBlockText(w,Math.round(cc-blockWidth(w,sG)/2),r,sG,0.45,0.95);
+    r+=7*sG+1;
+  }
+}
+
+/** Una aguja del reloj: línea con grosor, carácter según su dirección y degradado. */
+function drawHand(a,len,hw,z,c0,c1){
+  const cx=HUD.clockX, cy=HUD.clockY, cw=L.cw;
+  const dx=Math.sin(a), dy=-Math.cos(a), nx=-dy, ny=dx, g=dirGlyph(dx,dy);
+  for(let d=-len*0.14; d<=len; d+=cw*0.45){
+    const t=clamp(d/len), w=hw*(1-t*0.6), na=w>0?Math.max(1,Math.ceil(2*w/(cw*0.5))):0;
+    for(let k=0;k<=na;k++){
+      const v=na?-1+2*k/na:0;
+      mixc(c0,c1,t); mulc(0.75+0.25*Math.cos(v*1.5));
+      put(cx+dx*d+nx*v*w,cy+dy*d+ny*v*w,z,(w>cw*0.6&&Math.abs(v)<0.6)?'#':g);
+    }
+  }
+}
+
+function drawClock(now){
+  const cx=HUD.clockX, cy=HUD.clockY, R=HUD.clockR, cw=L.cw, TAU=Math.PI*2;
+  // esfera: anillo multicolor + anillo exterior punteado
+  const n=Math.ceil(TAU*R/(cw*0.45));
+  for(let i=0;i<n;i++){
+    const a=i/n*TAU, x=cx+Math.sin(a)*R, y=cy-Math.cos(a)*R, hk=hoverK(x,y);
+    multi(i/n-G.t*0.05); mulc(0.95+hk*0.7);
+    put(x,y,100,dirGlyph(Math.cos(a),Math.sin(a)));
+    if(i%3===0){ mulc(0.35); put(cx+Math.sin(a)*(R+cw*1.3),cy-Math.cos(a)*(R+cw*1.3),99,'.'); }
+  }
+  // marcas de minutos y horas
+  for(let k=0;k<60;k++){
+    const a=k/60*TAU, sa=Math.sin(a), ca=Math.cos(a);
+    if(k%5===0){
+      for(let r=R*0.8;r<=R*0.93;r+=cw*0.4){ multi(k/60+0.3-G.t*0.05); put(cx+sa*r,cy-ca*r,100,dirGlyph(sa,-ca)); }
+    } else { multi(k/60-G.t*0.05); mulc(0.45); put(cx+sa*R*0.9,cy-ca*R*0.9,100,'.'); }
+  }
+  // números 12 · 3 · 6 · 9
+  if(R>40) for(const [num,k] of [['12',0],['3',3],['6',6],['9',9]]){
+    const a=k/12*TAU, x=cx+Math.sin(a)*R*0.66, y=cy-Math.cos(a)*R*0.66;
+    for(let i=0;i<num.length;i++){ multi(k/12+0.5-G.t*0.05); put(x+(i-(num.length-1)/2)*cw,y,100,num[i]); }
+  }
+  // agujas (el segundero avanza suave con los milisegundos)
+  const h=now.getHours()%12, mi=now.getMinutes(), s=now.getSeconds()+now.getMilliseconds()/1000;
+  drawHand((h+mi/60+s/3600)/12*TAU,R*0.5,cw*0.95,101,[255,207,74],[255,120,40]);
+  drawHand((mi+s/60)/60*TAU,R*0.76,cw*0.6,102,[184,255,86],[52,214,140]);
+  drawHand(s/60*TAU,R*0.86,0,103,[255,79,154],[255,40,90]);
+  setc([255,240,200]); put(cx,cy,104,'@');
+  // hora digital debajo
+  const p2=v=>String(v).padStart(2,'0');
+  const dig=`${p2(now.getHours())}:${p2(mi)}:${p2(now.getSeconds())}`;
+  drawPlain(dig,Math.round(cx/cw-dig.length/2),HUD.digRow,0.2,1);
+}
+
+/** Calendario de mayo con el 24 marcado en rojo (el próximo 24 de mayo que llega). */
+function drawCalendar(now){
+  const y=(now.getMonth()>4||(now.getMonth()===4&&now.getDate()>24))?now.getFullYear()+1:now.getFullYear();
+  const off=(new Date(y,4,1).getDay()+6)%7;            // la semana empieza en lunes
+  const c0=HUD.calCol, r0=HUD.calRow, inner=CAL_W-2;
+  // fondo opaco: las celdas vacías tapan raíces/hojas que pasen por detrás
+  for(let r=r0+1;r<r0+CAL_H-1;r++) for(let c=c0+1;c<c0+CAL_W-1;c++) putCell(c,r,98,' ');
+  const border=(r)=>{ for(let i=0;i<CAL_W;i++){ const ch=(i===0||i===CAL_W-1)?'+':'-';
+    multi(i/CAL_W*0.5+r*0.02-G.t*0.06); mulc(0.8); putCell(c0+i,r,100,ch);} };
+  const side=(r)=>{ for(const i of [0,CAL_W-1]){ multi(i/CAL_W*0.5+r*0.02-G.t*0.06); mulc(0.8); putCell(c0+i,r,100,'|'); } };
+  border(r0);
+  side(r0+1); const title=`MAIG ${y}`; drawPlain(title,c0+1+Math.floor((inner-title.length)/2),r0+1,0.9,1.15);
+  side(r0+2); drawPlain('DL DT DC DJ DV DS DG',c0+2,r0+2,0.25,0.75);
+  side(r0+3); for(let i=2;i<CAL_W-2;i++){ setc([60,90,80]); putCell(c0+i,r0+3,100,'-'); }
+  for(let w=0;w<6;w++) side(r0+4+w);
+  border(r0+10);
+  const isMay=now.getMonth()===4&&now.getFullYear()===y;
+  for(let d=1;d<=31;d++){
+    const idx=off+d-1, wk=(idx/7)|0, wd=idx%7, col=c0+2+wd*3, row=r0+4+wk, txt=String(d).padStart(2,' ');
+    for(let i=0;i<2;i++){
+      if(txt[i]===' ') continue;
+      const px=(col+i+0.5)*L.cw, py=(row+0.5)*L.ch, hk=hoverK(px,py);
+      if(d===24){ setc([255,36,52]); mulc(0.85+0.15*Math.sin(G.t*3)+hk*0.4); }
+      else if(isMay&&d===now.getDate()){ setc([255,255,255]); }
+      else { multi(0.1+wd*0.07+wk*0.03-G.t*0.04); mulc(wd>=5?0.95:0.7); if(hk>0) towards([255,255,255],hk*0.5); }
+      put(px,py,101,txt[i]);
+    }
+    if(d===24){
+      setc([255,60,70]); putCell(col-1,row,101,'['); putCell(col+2,row,101,']');
+      HUD.redX=(col+1)*L.cw; HUD.redY=(row+0.5)*L.ch;
+    }
+  }
+}
+
+function drawHud(){
+  const now=new Date(); curPid=0;
+  drawDate(now); drawGreeting(now); drawClock(now); drawCalendar(now);
+}
+
 /* ---------------------- PARTÍCULAS ---------------------- */
 const particles=[], acc={};
 function spawnParticle(type){
@@ -815,6 +942,9 @@ function stepParticle(q,dt,m){
       q.x+=q.vx*dt; q.y+=q.vy*dt;
       if(d<L.cw*0.8){ q.type='flash'; q.max=q.life+0.4; q.ch='*'; q.c=q.c[0]>200?[255,236,150]:[190,240,255]; }
       break; }
+    case 'burst':
+      q.vx*=Math.exp(-dt*2.5); q.vy=q.vy*Math.exp(-dt*2.5)+18*dt;
+      q.x+=q.vx*dt; q.y+=q.vy*dt; break;
     case 'sap': {
       q.h+=q.sp*dt; if(q.h>=G.len-2) return false;
       const sp=stemPoint(q.h,TC); q.x=sp.x+q.off; q.y=sp.y; break; }
@@ -944,6 +1074,13 @@ function drawGlows(){
     g.addColorStop(0.45,`rgba(255,70,150,${(0.03*bud+0.06*f)*li})`);
     g.addColorStop(1,'rgba(0,0,0,0)'); ctx.fillStyle=g; ctx.fillRect(x-r,y-r,r*2,r*2);
   }
+  // halo rojo que late sobre el 24 de mayo
+  if(HUD.redX){
+    const r=L.cw*4.5, a=0.22+0.1*Math.sin(G.t*3);
+    const g=ctx.createRadialGradient(HUD.redX,HUD.redY,0,HUD.redX,HUD.redY,r);
+    g.addColorStop(0,`rgba(255,40,60,${a})`); g.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=g; ctx.fillRect(HUD.redX-r,HUD.redY-r,r*2,r*2);
+  }
   ctx.restore();
 }
 
@@ -965,6 +1102,7 @@ function render(){
   P.leaves.forEach((lf,i)=>{ curPid=2+i; drawLeaf(lf); });
   drawFlower();
   contactShadows();
+  drawHud();
   // 2) composición
   ctx.setTransform(DPR,0,0,DPR,0,0);
   ctx.globalCompositeOperation='source-over'; ctx.globalAlpha=1;
@@ -979,87 +1117,47 @@ function render(){
   if(G.fade<1){ ctx.fillStyle=`rgba(2,3,3,${1-G.fade})`; ctx.fillRect(0,0,W,H); }
 }
 
-/* ---------------------- INTERFAZ ---------------------- */
-const $=id=>document.getElementById(id);
-const ui={idx:$('phaseIdx'),name:$('phaseName'),desc:$('phaseDesc'),fill:$('fill'),pct:$('pct'),
-  play:$('playBtn'),restart:$('restartBtn'),speed:$('speed'),speedOut:$('speedOut'),part:$('partToggle'),
-  bar:$('bar'),chain:$('chain'),fps:$('fps'),root:$('ui')};
-const chainItems=PHASES.map((ph,i)=>{
-  const li=document.createElement('li'); li.textContent=ph.key; li.style.flex=`0 0 ${(ph.end-ph.start)*100}%`;
-  ui.chain.appendChild(li);
-  if(i>0){ const t=document.createElement('div'); t.className='tick'; t.style.left=(ph.start*100)+'%'; ui.bar.appendChild(t); }
-  return li;
-});
-let lastPhase=-1, lastPct=-1;
-function updateUI(){
-  const p=G.p; let idx=0;
-  for(let i=0;i<PHASES.length;i++) if(p>=PHASES[i].start) idx=i;
-  if(idx!==lastPhase){
-    lastPhase=idx; const ph=PHASES[idx];
-    ui.name.classList.add('swap');
-    setTimeout(()=>{ ui.name.textContent=ph.key; ui.desc.textContent=ph.desc;
-      ui.idx.textContent=`FASE 0${idx+1} / 0${PHASES.length}`; ui.name.classList.remove('swap'); },200);
-    chainItems.forEach((li,i)=>{ li.classList.toggle('done',i<idx); li.classList.toggle('active',i===idx); });
-  }
-  ui.fill.style.width=(p*100).toFixed(2)+'%';
-  const pct=Math.floor(p*100+1e-6);
-  if(pct!==lastPct){ lastPct=pct; ui.pct.textContent=pct+'%'; }
-}
-function setPlaying(v){ state.playing=v; ui.play.textContent=v?'❚❚ PAUSE':'▶ PLAY'; }
+/* ---------------------- INTERACCIÓN ---------------------- */
 function restart(){
   P=genPlant((Math.random()*1e9)|0);
   state.growth=0; state.clock=0; state.gust=0; particles.length=0;
   for(const k in acc) acc[k]=0;
-  setPlaying(true);
 }
-function seekTo(clientX){
-  const r=ui.bar.getBoundingClientRect();
-  state.growth=clamp((clientX-r.left)/r.width)*CONFIG.GROWTH_DURATION;
-  for(let i=particles.length-1;i>=0;i--) if(particles[i].type!=='air') particles.splice(i,1);
+/** Clic / toque: estallido de chispas multicolor en el punto pulsado. */
+function burst(x,y){
+  for(let i=0;i<34 && particles.length<CONFIG.PARTICLE_COUNT+60;i++){
+    const a=Math.random()*Math.PI*2, v=40+Math.random()*120, c=MULTI[(Math.random()*MULTI.length)|0];
+    particles.push({type:'burst',x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:0,max:0.8+Math.random()*0.9,
+      ch:'*+.:'[(Math.random()*4)|0],c,seed:Math.random()*100});
+  }
 }
-ui.play.onclick=()=>setPlaying(!state.playing);
-ui.restart.onclick=restart;
-ui.speed.oninput=()=>{ state.speed=parseFloat(ui.speed.value); ui.speedOut.textContent=state.speed.toFixed(2)+'×'; };
-ui.part.onchange=()=>{ state.particles=ui.part.checked; if(!state.particles) particles.length=0; };
-let seeking=false;
-ui.bar.addEventListener('pointerdown',e=>{ seeking=true; ui.bar.setPointerCapture(e.pointerId); seekTo(e.clientX); });
-ui.bar.addEventListener('pointermove',e=>{ if(seeking) seekTo(e.clientX); });
-ui.bar.addEventListener('pointerup',()=>{ seeking=false; });
-window.addEventListener('keydown',e=>{
-  if(e.code==='Space'){ e.preventDefault(); setPlaying(!state.playing); }
-  else if(e.key==='r'||e.key==='R') restart();
-  else if(e.key==='p'||e.key==='P'){ ui.part.checked=!ui.part.checked; ui.part.onchange(); }
-  else if(e.key==='h'||e.key==='H') ui.root.classList.toggle('hidden');
-});
-// El movimiento del cursor genera ráfagas de viento y aparta las partículas
+// El movimiento del cursor genera ráfagas de viento; el texto, el reloj y las partículas reaccionan
 window.addEventListener('pointermove',e=>{
   const m=state.mouse;
-  if(m.active && state.playing) state.gust=clamp(state.gust+(e.clientX-m.x)*0.004,-1.5,1.5);
+  if(m.active) state.gust=clamp(state.gust+(e.clientX-m.x)*0.004,-1.5,1.5);
   m.x=e.clientX; m.y=e.clientY; m.active=true;
 });
+window.addEventListener('pointerdown',e=>{ state.mouse.x=e.clientX; state.mouse.y=e.clientY; state.mouse.active=true; burst(e.clientX,e.clientY); });
 document.addEventListener('pointerleave',()=>{ state.mouse.active=false; });
+window.addEventListener('keydown',e=>{ if(e.key==='r'||e.key==='R') restart(); });   // R = nueva flor
 let resizeT=0;
 window.addEventListener('resize',()=>{ clearTimeout(resizeT); resizeT=setTimeout(()=>{ resizeT=0; layout(); },120); });
 
 /* ---------------------- BUCLE PRINCIPAL ---------------------- */
-let last=performance.now(), fpsN=0, fpsT=0;
+let last=performance.now();
 function frame(now){
   requestAnimationFrame(frame);             // primero: un error puntual no detiene la animación
   const dt=Math.min(0.05,(now-last)/1000); last=now;
   // si la ventana empezó oculta (tamaño 0), recalcula el layout cuando ya tenga tamaño
   if(!L.ready || window.innerWidth!==W || window.innerHeight!==H){ if(window.innerWidth>0 && !resizeT) layout(); }
-  if(state.playing){
-    const sdt=dt*state.speed;
-    state.clock+=sdt;
-    state.growth=Math.min(CONFIG.GROWTH_DURATION,state.growth+sdt);
-    state.gust*=Math.exp(-dt*1.4);
-  }
+  // en pantalla estrecha el saludo puede pasar de 1 a 2 líneas (BONA TARDA): recoloca
+  if(!L.wide && HUD.greet!==greeting(new Date().getHours()).join(' ')) layout();
+  state.clock+=dt;
+  state.growth=Math.min(CONFIG.GROWTH_DURATION,state.growth+dt);
+  state.gust*=Math.exp(-dt*1.4);
   computeFrame();
-  if(state.playing) updateParticles(dt*state.speed);
+  updateParticles(dt);
   render();
-  updateUI();
-  fpsN++; fpsT+=dt;
-  if(fpsT>=0.5){ ui.fps.textContent=Math.round(fpsN/fpsT)+' FPS'; fpsN=0; fpsT=0; }
 }
 
 P=genPlant((Math.random()*1e9)|0);
