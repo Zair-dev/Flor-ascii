@@ -1,2 +1,0 @@
-# Flor-ascii
-flor-ascii
